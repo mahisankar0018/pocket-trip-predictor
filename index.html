@@ -1,198 +1,216 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Pocket Trip Predictor — Trip Cost Calculator (INR)</title>
-
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous"/>
+<meta charset="utf-8">
+<title>StepTrip — Simple Trip Cost Estimator (INR)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 
 <style>
   :root{
-    --bg-start:#0f172a; --bg-end:#1e293b; --card:#0b1220ee; --text:#e5e7eb;
-    --muted:#94a3b8; --ring:#334155; --accent:#22c55e; --danger:#ef4444;
-    --shadow:0 10px 30px rgba(2,6,23,.35); --radius:16px;
+    --bg:#050816;
+    --paper:#111827;
+    --accent:#38bdf8;
+    --accent-soft:#0ea5e933;
+    --danger:#ef4444;
+    --text:#e5e7eb;
+    --muted:#9ca3af;
+    --radius:14px;
+    --shadow:0 18px 45px rgba(15,23,42,.65);
   }
-  [data-theme="light"]{
-    --bg-start:#fafafa; --bg-end:#f4f0ff; --card:#ffffffee; --text:#0b1220;
-    --muted:#6b7280; --ring:#d1d5db; --accent:#7c3aed; --danger:#dc2626;
-  }
-  *{box-sizing:border-box}
-  html,body{height:100%}
+  *{box-sizing:border-box;margin:0;padding:0}
   body{
-    margin:0; font-family:"Inter", system-ui, Segoe UI, Roboto, Arial;
+    min-height:100vh;
+    font-family:"Poppins",system-ui,Segoe UI,Roboto,Arial;
+    background:radial-gradient(circle at 0 0,#22c55e22,transparent 55%),
+               radial-gradient(circle at 100% 100%,#38bdf822,transparent 55%),
+               linear-gradient(160deg,#020617,#050816);
     color:var(--text);
-    background:
-      radial-gradient(1200px 800px at 20% -10%, #0ea5e933 0, transparent 60%),
-      radial-gradient(1200px 800px at 120% 110%, #22c55e33 0, transparent 60%),
-      linear-gradient(160deg, var(--bg-start), var(--bg-end));
   }
-  .wrap{max-width:1200px; margin:42px auto 64px; padding:0 20px}
-  header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px}
-  .brand{display:flex; gap:12px; align-items:center}
-  .logo{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#22c55e,#0ea5e9);box-shadow:var(--shadow)}
-  h1{margin:0; font-size:clamp(22px,3vw,28px)}
-  .sub{color:var(--muted); font-size:14px}
-  .badge{padding:3px 10px;border:1px solid #33415588;border-radius:999px}
-  .card{background:var(--card); border:1px solid #0b122055; backdrop-filter: blur(10px); border-radius:var(--radius); box-shadow:var(--shadow)}
-  .grid{display:grid; grid-template-columns:1fr; gap:16px}
-  @media (min-width: 1000px){ .grid{grid-template-columns:6fr 4fr} }
-  form{padding:20px}
-  .row{display:grid; grid-template-columns:1fr 1fr; gap:12px}
-  .row-3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px}
-  .field{display:flex; flex-direction:column; gap:8px}
-  label{font-weight:700; font-size:13px}
-  input, select, button{font-family:inherit}
-  input, select{
-    background:#0b1220; color:var(--text); border:1px solid var(--ring); border-radius:12px; padding:12px 14px; outline:none;
+  .shell{max-width:960px;margin:28px auto 40px;padding:0 16px;}
+  header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:18px;}
+  .title h1{font-size:clamp(22px,3vw,28px);}
+  .title p{font-size:13px;color:var(--muted);}
+  .pill{
+    padding:4px 10px;
+    border-radius:999px;
+    border:1px solid #1f2937;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.1em;
+    color:var(--muted);
   }
-  [data-theme="light"] input, [data-theme="light"] select{ background:#fff }
-  input:focus, select:focus{ border-color:#22c55e88; box-shadow:0 0 0 4px #22c55e22 }
-  .hint{font-size:12px; color:var(--muted)}
-  .flex{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
-  .btn{background:linear-gradient(135deg,var(--accent), #16a34a); color:#08121a; font-weight:800; border:none; padding:12px 16px; border-radius:12px; cursor:pointer}
-  .btn.secondary{background:transparent; color:var(--text); border:1px solid var(--ring)}
-  .iconbtn{padding:10px 12px; border-radius:10px; border:1px solid var(--ring); background:transparent; color:var(--text); cursor:pointer}
-  .results{padding:20px}
-  .results h2{font-size:18px; margin:0 0 10px}
-  .stat{display:grid; grid-template-columns:1fr auto; gap:8px; padding:12px 0; border-top:1px dashed #33415577}
-  .stat:first-of-type{border-top:none}
-  .value{font-weight:800}
-  .mono{font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1}
-  .error{color:var(--danger); font-size:13px; margin-top:-4px}
-  #map{height:420px; border-radius:16px; border:1px solid #0b122055; margin:14px 20px 20px}
-  footer{margin-top:18px; text-align:center; color:var(--muted); font-size:12px}
-  /* modal */
-  .modal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.5); z-index:50}
-  .modal.open{display:flex}
-  .modal-card{background:var(--card); border:1px solid #0b122055; border-radius:16px; padding:18px; width:min(520px, 92vw); box-shadow:var(--shadow)}
-  .modal h3{margin:0 0 8px}
-  /* print-friendly */
-  @media print{
-    #map{display:none}
-    .btn, .iconbtn, #themeBtn{display:none}
-    body{background:#fff}
-    .card{box-shadow:none}
+
+  /* main layout */
+  .layout{display:grid;grid-template-columns:1.1fr .9fr;gap:18px;}
+  @media(max-width:900px){.layout{grid-template-columns:1fr;}}
+
+  .card{
+    background:var(--paper);
+    border-radius:var(--radius);
+    border:1px solid #1f2937;
+    box-shadow:var(--shadow);
   }
+  .card-inner{padding:16px 18px 18px;}
+
+  h2{font-size:17px;margin-bottom:4px;}
+  h3{font-size:15px;margin-bottom:4px;}
+  .step-label{
+    font-size:11px;
+    letter-spacing:.15em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin-bottom:2px;
+  }
+  .divider{
+    border-top:1px dashed #374151;
+    margin:10px 0 14px;
+  }
+
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+  @media(max-width:700px){.grid-3{grid-template-columns:1fr 1fr;}}
+  label{font-size:13px;font-weight:600;margin-bottom:4px;}
+  .field{display:flex;flex-direction:column;margin-bottom:10px;}
+  input,select{
+    font-family:inherit;font-size:14px;
+    border-radius:10px;
+    border:1px solid #374151;
+    padding:9px 11px;
+    background:#020617;
+    color:var(--text);
+    outline:none;
+  }
+  input:focus,select:focus{
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-soft);
+  }
+  .hint{font-size:11px;color:var(--muted);margin-top:3px;}
+  .error{font-size:11px;color:var(--danger);margin-top:3px;}
+
+  .btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;}
+  button{
+    font-family:inherit;font-size:14px;font-weight:600;
+    border-radius:999px;border:none;
+    padding:9px 16px;
+    cursor:pointer;
+  }
+  .btn-primary{
+    background:linear-gradient(90deg,#38bdf8,#22c55e);
+    color:#020617;
+  }
+  .btn-ghost{
+    background:transparent;
+    border:1px solid #374151;
+    color:var(--text);
+  }
+
+  /* summary strip */
+  .summary-strip{
+    display:flex;flex-wrap:wrap;gap:10px;
+    padding:10px 14px;
+    border-bottom:1px solid #1f2937;
+    background:radial-gradient(circle at 0 0,#38bdf811,transparent 60%),
+               radial-gradient(circle at 100% 100%,#22c55e11,transparent 60%);
+    border-radius:var(--radius) var(--radius) 0 0;
+  }
+  .chip{
+    padding:4px 10px;
+    border-radius:999px;
+    background:#020617aa;
+    font-size:12px;
+  }
+  .chip strong{font-weight:700;}
+
+  /* result stats */
+  .stat{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px dashed #374151;}
+  .stat:first-of-type{border-top:none;}
+  .stat-label{font-size:13px;}
+  .stat-value{font-size:14px;font-weight:700;}
+  .mono{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;}
+
+  .breakup{margin-top:8px;font-size:12px;color:var(--muted);line-height:1.5;}
 </style>
 </head>
 <body>
-<div class="wrap" id="app">
+<div class="shell">
   <header>
-    <div class="brand">
-      <div class="logo"></div>
-      <div>
-        <h1>Pocket Trip Predictor</h1>
-        <div class="sub">Trip cost calculator — <span class="badge">INR • Map • GPS • Via</span></div>
-      </div>
+    <div class="title">
+      <h1>StepTrip Cost Planner</h1>
+      <p>Estimate fuel, stay, food and extras for any journey in a few quick steps.</p>
     </div>
-    <div class="flex">
-      <div id="helloUser" class="hint" style="min-width:160px"></div>
-      <button class="iconbtn" id="loginBtn" title="Login">🔐 Login</button>
-      <button class="iconbtn" id="shareBtn" title="Copy shareable link">🔗 Share</button>
-      <button class="iconbtn" id="themeBtn" title="Switch theme">🌓 Theme</button>
-    </div>
+    <div class="pill">INR • Driving or Flying</div>
   </header>
 
-  <div class="grid">
+  <div class="layout">
+    <!-- LEFT: FORM -->
     <section class="card">
-      <form id="calcForm" novalidate>
-        <!-- route fields -->
-        <div class="row">
+      <div class="card-inner">
+        <div class="step-label">Step 1 · Basic route</div>
+        <h2>Where are you going?</h2>
+        <div class="grid-2">
           <div class="field">
             <label for="from">From</label>
-            <div class="flex">
-              <input id="from" list="cities" placeholder="e.g., Hyderabad" style="flex:1">
-              <button type="button" id="useGps" class="iconbtn" title="Use my location">📍 GPS</button>
-              <button type="button" id="swap" class="iconbtn" title="Swap">⇅</button>
-            </div>
-            <div class="hint" id="fromHint">Use GPS or type a city/place.</div>
+            <input id="from" placeholder="City / town">
           </div>
           <div class="field">
             <label for="to">To</label>
-            <input id="to" list="cities" placeholder="e.g., Bengaluru">
-            <div class="hint">Pick a place, then click “Find Route”.</div>
+            <input id="to" placeholder="City / town">
           </div>
         </div>
+        <div class="field">
+          <label for="distance">Distance (km)</label>
+          <input id="distance" type="number" min="1" step="0.1" placeholder="Example: 450">
+          <div class="hint">Use Google Maps once, then copy the total km here.</div>
+          <div class="error" id="distErr" hidden>Enter a positive distance in km.</div>
+        </div>
 
-        <!-- via -->
-        <div class="row" style="margin-top:10px">
-          <div class="field">
-            <label for="via">Via (optional)</label>
-            <input id="via" list="cities" placeholder="e.g., Anantapur">
-            <div class="hint">Add one stop between A and B (A → Via → B).</div>
-          </div>
+        <div class="divider"></div>
+
+        <div class="step-label">Step 2 · Travel mode</div>
+        <div class="grid-2">
           <div class="field">
             <label for="mode">Mode</label>
             <select id="mode">
-              <option value="car" selected>Driving (Car)</option>
-              <option value="bike">Driving (Bike)</option>
-              <option value="fly">Flying (Estimate)</option>
+              <option value="car" selected>Driving – Car / SUV</option>
+              <option value="bike">Driving – Bike</option>
+              <option value="fly">Flying – Estimate</option>
             </select>
+            <div class="hint">Driving uses mileage + fuel price; flying uses average fare per km.</div>
+          </div>
+          <div class="field">
+            <label for="travellers">Travellers</label>
+            <input id="travellers" type="number" min="1" value="2">
           </div>
         </div>
 
-        <!-- distance lookup -->
-        <div class="row" style="margin-top:10px">
-          <div class="field">
-            <label for="distance">Distance (km) <span class="hint">(auto or enter)</span></label>
-            <input id="distance" type="number" min="1" step="0.1" placeholder="e.g., 570" required>
-            <div class="error" id="distanceErr" hidden>Enter a distance in km (or click “Find Route”).</div>
-          </div>
-          <div class="field">
-            <label for="routeBtn">Distance Lookup</label>
-            <div class="flex">
-              <button class="btn" type="button" id="routeBtn">Find Route & Fill Distance</button>
-              <button class="btn secondary" type="button" id="resetBtn">Reset</button>
-            </div>
-            <div class="hint">Map uses OpenStreetMap / OSRM. Geocoding via Nominatim.</div>
-          </div>
-        </div>
-
-        <!-- driving -->
-        <div id="drivingFields" style="margin-top:10px">
-          <div class="row-3">
+        <div id="driveBlock">
+          <div class="grid-3">
             <div class="field">
               <label for="mileage">Mileage (km/L)</label>
-              <input id="mileage" type="number" min="1" step="0.1" value="18">
+              <input id="mileage" type="number" min="1" value="18">
             </div>
             <div class="field">
               <label for="fuel">Fuel price (₹/L)</label>
-              <input id="fuel" type="number" min="1" step="0.1" value="110">
+              <input id="fuel" type="number" min="1" value="110">
             </div>
-            <div class="field">
-              <label for="speed">Avg speed (km/h)</label>
-              <input id="speed" type="number" min="10" step="1" value="60">
-            </div>
-          </div>
-          <div class="row" style="margin-top:10px">
             <div class="field">
               <label for="tollPerKm">Toll estimate (₹/km)</label>
               <input id="tollPerKm" type="number" min="0" step="0.1" value="1.5">
-              <div class="hint">Set to 0 to ignore tolls.</div>
-            </div>
-            <div class="field">
-              <label for="travellers">Travellers</label>
-              <input id="travellers" type="number" min="1" step="1" value="2">
+              <div class="hint">Set to 0 if there are no tolls.</div>
             </div>
           </div>
         </div>
 
-        <!-- flying -->
-        <div id="flyingFields" style="display:none; margin-top:10px">
-          <div class="row-3">
-            <div class="field">
-              <label for="tickets">Passengers</label>
-              <input id="tickets" type="number" min="1" step="1" value="1">
-            </div>
+        <div id="flyBlock" style="display:none;margin-top:6px;">
+          <div class="grid-3">
             <div class="field">
               <label for="farePerKm">Avg fare (₹/km)</label>
               <input id="farePerKm" type="number" min="1" step="0.1" value="6.5">
             </div>
             <div class="field">
-              <label for="isReturn">Trip Type</label>
-              <select id="isReturn">
+              <label for="tripType">Trip type</label>
+              <select id="tripType">
                 <option value="one">One-way</option>
                 <option value="return" selected>Return</option>
               </select>
@@ -200,531 +218,255 @@
           </div>
         </div>
 
-        <!-- stay + food + extras -->
-        <div class="card" style="margin:16px 0; padding:14px;">
-          <div class="row-3">
-            <div class="field">
-              <label for="nights">Stay nights</label>
-              <input id="nights" type="number" min="0" step="1" placeholder="e.g., 2">
-            </div>
-            <div class="field">
-              <label for="hotelRate">Hotel rate (₹/room/night)</label>
-              <input id="hotelRate" type="number" min="0" step="1" placeholder="e.g., 1500">
-            </div>
-            <div class="field">
-              <label for="pplPerRoom">People per room</label>
-              <input id="pplPerRoom" type="number" min="1" step="1" value="2">
-            </div>
+        <div class="divider"></div>
+
+        <div class="step-label">Step 3 · Stay & food</div>
+        <div class="grid-3">
+          <div class="field">
+            <label for="nights">Nights</label>
+            <input id="nights" type="number" min="0" step="1" value="0">
           </div>
-          <div class="row" style="margin-top:10px">
-            <div class="field">
-              <label for="foodPerDay">Food (₹/person/day)</label>
-              <input id="foodPerDay" type="number" min="0" step="1" placeholder="e.g., 300">
-            </div>
-            <div class="field">
-              <label for="extras">Extras / Shopping / Buffer (₹ total)</label>
-              <input id="extras" type="number" min="0" step="1" value="0">
-            </div>
+          <div class="field">
+            <label for="hotelRate">Hotel (₹/room/night)</label>
+            <input id="hotelRate" type="number" min="0" step="1" value="0">
           </div>
-          <div class="hint">Rooms = ceil(travellers ÷ people-per-room). Stay totals are ₹0 until you add nights & rate.</div>
+          <div class="field">
+            <label for="pplPerRoom">People per room</label>
+            <input id="pplPerRoom" type="number" min="1" value="2">
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label for="foodPerDay">Food (₹/person/day)</label>
+            <input id="foodPerDay" type="number" min="0" step="1" value="0">
+          </div>
+          <div class="field">
+            <label for="extras">Extras / shopping (₹ total)</label>
+            <input id="extras" type="number" min="0" step="1" value="0">
+          </div>
         </div>
 
-        <div class="flex" style="margin:14px 0 6px">
-          <button class="btn" type="submit">Calculate (₹)</button>
-          <span class="hint">All amounts shown in INR.</span>
-        </div>
-      </form>
+        <div class="divider"></div>
 
-      <div id="map" class="card"></div>
+        <div class="step-label">Step 4 · Calculate</div>
+        <div class="btn-row">
+          <button class="btn-primary" id="calcBtn" type="button">Calculate cost</button>
+          <button class="btn-ghost" id="resetBtn" type="button">Clear all</button>
+        </div>
+        <div class="hint" style="margin-top:6px;">All values are estimated and rounded. Use this only as a planning helper.</div>
+      </div>
     </section>
 
+    <!-- RIGHT: SUMMARY -->
     <aside class="card">
-      <div class="results">
-        <h2>Result</h2>
-        <div id="routeLine" class="hint" style="margin-bottom:8px">Fill places and click “Find Route”.</div>
+      <div class="summary-strip">
+        <div class="chip"><strong>Route:</strong> <span id="summaryRoute">—</span></div>
+        <div class="chip"><strong>Distance:</strong> <span id="summaryDist">0 km</span></div>
+        <div class="chip"><strong>Mode:</strong> <span id="summaryMode">–</span></div>
+      </div>
+      <div class="card-inner">
+        <h3>Trip budget overview</h3>
+        <p class="hint">Press “Calculate cost” after filling the form to see a full breakup.</p>
 
-        <!-- Weather -->
-        <div class="card" style="padding:12px; margin-bottom:8px;">
-          <div class="flex" style="justify-content:space-between;">
-            <div><strong>Destination weather</strong> <span id="wxPlace" class="hint"></span></div>
-            <div id="wxNow" class="mono"></div>
-          </div>
-          <div id="wxMore" class="hint"></div>
-        </div>
-
-        <div id="resultWrap" hidden>
-          <div class="stat"><div>Transport total</div>   <div class="value mono" id="transportTotal">₹0</div></div>
-          <div class="stat"><div>Stay total</div>        <div class="value mono" id="stayTotal">₹0</div></div>
-
-          <div class="stat" id="roomsBlock" style="display:none">
-            <div>Rooms needed</div>
-            <div class="value mono" id="roomsNeeded">0</div>
-          </div>
-
-          <div class="stat"><div>Food total</div>        <div class="value mono" id="foodTotal">₹0</div></div>
-          <div class="stat"><div>Extras</div>            <div class="value mono" id="extrasTotal">₹0</div></div>
-
-          <div class="stat" id="fuelBlock"><div>Fuel needed</div><div class="value mono" id="fuelNeeded">0 L</div></div>
-          <div class="stat" id="timeBlock"><div>Est. drive time</div><div class="value mono" id="driveTime">0 h</div></div>
-
-          <div class="stat" style="border-top:2px dashed #334155aa">
-            <div>Grand total</div>   <div class="value mono" id="grandTotal">₹0</div>
+        <div id="resultBlock" style="margin-top:8px;">
+          <div class="stat">
+            <div class="stat-label">Transport total</div>
+            <div class="stat-value mono" id="transportTotal">₹0</div>
           </div>
           <div class="stat">
-            <div>Per person (all-in)</div>  <div class="value mono" id="grandPerPerson">₹0</div>
+            <div class="stat-label">Stay total</div>
+            <div class="stat-value mono" id="stayTotal">₹0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Food total</div>
+            <div class="stat-value mono" id="foodTotal">₹0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Extras</div>
+            <div class="stat-value mono" id="extrasTotal">₹0</div>
           </div>
 
-          <div class="stat"><div>Breakup</div><div class="mono" id="breakup">—</div></div>
+          <div class="stat" id="fuelRow">
+            <div class="stat-label">Fuel needed</div>
+            <div class="stat-value mono" id="fuelNeeded">0 L</div>
+          </div>
+          <div class="stat" id="roomsRow">
+            <div class="stat-label">Rooms × nights</div>
+            <div class="stat-value mono" id="roomsInfo">0 × 0</div>
+          </div>
+
+          <div class="stat" style="border-top:2px dashed #4b5563;margin-top:4px;">
+            <div class="stat-label">Grand total</div>
+            <div class="stat-value mono" id="grandTotal">₹0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Per person</div>
+            <div class="stat-value mono" id="perPerson">₹0</div>
+          </div>
+
+          <div class="breakup" id="breakdownText">Fill the details and hit calculate to see the cost breakup.</div>
         </div>
       </div>
     </aside>
   </div>
-
-  <footer>
-    © Pocket Trip Predictor. Routing: OSRM • Geocoding: Nominatim • Map: Leaflet/OSM • Weather: Open-Meteo.
-  </footer>
 </div>
 
-<!-- LOGIN MODAL -->
-<div class="modal" id="loginModal" aria-hidden="true">
-  <div class="modal-card">
-    <h3>Login</h3>
-    <div class="row">
-      <div class="field">
-        <label for="uName">Full name</label>
-        <input id="uName" placeholder="Your name">
-      </div>
-      <div class="field">
-        <label for="uEmail">Email</label>
-        <input id="uEmail" type="email" placeholder="you@example.com">
-      </div>
-    </div>
-    <div class="row" style="margin-top:10px">
-      <div class="field">
-        <label for="uPhone">Phone</label>
-        <input id="uPhone" type="tel" placeholder="+91 9XXXXXXXXX">
-      </div>
-      <div class="field">
-        <label for="uRemember">Remember me</label>
-        <select id="uRemember">
-          <option value="yes" selected>Yes</option>
-          <option value="no">No</option>
-        </select>
-      </div>
-    </div>
-    <div class="flex" style="margin-top:12px">
-      <button class="btn" id="saveLogin">Save</button>
-      <button class="btn secondary" id="closeLogin">Close</button>
-    </div>
-    <div class="hint" style="margin-top:8px">Note: This demo stores your details only in this browser using localStorage.</div>
-  </div>
-</div>
-
-<!-- city autocomplete -->
-<datalist id="cities">
-  <option>Hyderabad</option><option>Bengaluru</option><option>Chennai</option><option>Mumbai</option>
-  <option>Delhi</option><option>Pune</option><option>Kolkata</option><option>Ahmedabad</option>
-  <option>Jaipur</option><option>Surat</option><option>Lucknow</option><option>Kanpur</option>
-  <option>Nagpur</option><option>Indore</option><option>Thane</option><option>Bhopal</option>
-  <option>Visakhapatnam</option><option>Patna</option><option>Vadodara</option><option>Coimbatore</option>
-  <option>Kochi</option><option>Vijayawada</option><option>Madurai</option><option>Rajahmundry</option>
-  <option>Warangal</option><option>Nellore</option><option>Guntur</option><option>Tirupati</option>
-  <option>Mysuru</option><option>Hubballi</option><option>Belagavi</option><option>Goa</option>
-  <option>Trichy</option><option>Salem</option><option>Erode</option><option>Vellore</option>
-  <option>Udaipur</option><option>Jodhpur</option><option>Agra</option><option>Varanasi</option>
-  <option>Dehradun</option><option>Haridwar</option><option>Rishikesh</option><option>Shimla</option>
-  <option>Manali</option><option>Chandigarh</option><option>Noida</option><option>Gurugram</option>
-</datalist>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
 
+  const nf0 = new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0});
+  const nf2 = new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:2});
+
   const fields = {
-    from: $('from'), to: $('to'), via: $('via'), mode: $('mode'), distance: $('distance'),
-    mileage: $('mileage'), fuel: $('fuel'), speed: $('speed'), tollPerKm: $('tollPerKm'), travellers: $('travellers'),
-    tickets: $('tickets'), farePerKm: $('farePerKm'), isReturn: $('isReturn'),
-    nights: $('nights'), hotelRate: $('hotelRate'), pplPerRoom: $('pplPerRoom'),
-    foodPerDay: $('foodPerDay'), extras: $('extras'),
-    drivingFields: $('drivingFields'), flyingFields: $('flyingFields'), distanceErr: $('distanceErr')
+    from: $("from"), to: $("to"), distance: $("distance"),
+    mode: $("mode"), travellers: $("travellers"),
+    mileage: $("mileage"), fuel: $("fuel"), tollPerKm: $("tollPerKm"),
+    farePerKm: $("farePerKm"), tripType: $("tripType"),
+    nights: $("nights"), hotelRate: $("hotelRate"), pplPerRoom: $("pplPerRoom"),
+    foodPerDay: $("foodPerDay"), extras: $("extras")
   };
+
   const out = {
-    routeLine: $('routeLine'), resultWrap: $('resultWrap'),
-    transportTotal: $('transportTotal'), stayTotal: $('stayTotal'), foodTotal: $('foodTotal'), extrasTotal: $('extrasTotal'),
-    totalCost: $('totalCost'), perPerson: $('perPerson'),
-    fuelNeeded: $('fuelNeeded'), driveTime: $('driveTime'), breakup: $('breakup'), fuelBlock: $('fuelBlock'), timeBlock: $('timeBlock'),
-    grandTotal: $('grandTotal'), grandPerPerson: $('grandPerPerson'),
-    wxPlace: $('wxPlace'), wxNow: $('wxNow'), wxMore: $('wxMore'),
-    helloUser: $('helloUser'),
-    roomsBlock: $('roomsBlock'), roomsNeeded: $('roomsNeeded')
+    distErr: $("distErr"),
+    summaryRoute: $("summaryRoute"),
+    summaryDist: $("summaryDist"),
+    summaryMode: $("summaryMode"),
+    transportTotal: $("transportTotal"),
+    stayTotal: $("stayTotal"),
+    foodTotal: $("foodTotal"),
+    extrasTotal: $("extrasTotal"),
+    fuelNeeded: $("fuelNeeded"),
+    roomsInfo: $("roomsInfo"),
+    grandTotal: $("grandTotal"),
+    perPerson: $("perPerson"),
+    breakdownText: $("breakdownText"),
+    fuelRow: $("fuelRow"),
+    roomsRow: $("roomsRow")
   };
 
-  const toInt = v => {
-    const n = parseInt((v ?? '').toString().trim(), 10);
-    return Number.isFinite(n) ? n : 0;
-  };
-  const toNum = v => {
-    const n = parseFloat((v ?? '').toString().trim());
-    return Number.isFinite(n) ? n : 0;
-  };
-
-  let theme = localStorage.getItem('ptp:theme') || 'dark';
-  const root = document.documentElement;
-  setTheme(theme);
-  $('themeBtn').addEventListener('click', () => {
-    theme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(theme); localStorage.setItem('ptp:theme', theme);
-  });
-  function setTheme(t){ root.setAttribute('data-theme', t === 'light' ? 'light' : 'dark'); }
-
-  const map = L.map('map').setView([20.5937, 78.9629], 5);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, attribution:'&copy; OpenStreetMap'}).addTo(map);
-  let mFrom=null, mVia=null, mTo=null, routeLayer=null;
-
-  function marker(color){ return L.divIcon({className:'',iconSize:[12,12],html:`<div style="background:${color};width:12px;height:12px;border-radius:999px;border:2px solid white;box-shadow:0 0 0 2px rgba(0,0,0,.2)"></div>`}); }
-  const iconFrom = marker('#22c55e'), iconVia = marker('#f59e0b'), iconTo = marker('#0ea5e9');
-
-  const INR0 = new Intl.NumberFormat('en-IN', {style:'currency', currency:'INR', maximumFractionDigits:0});
-  const INR2 = new Intl.NumberFormat('en-IN', {style:'currency', currency:'INR', maximumFractionDigits:2});
-
-  const KEY='ptp:state'; const LOGINKEY='ptp:login';
-  restoreState(); restoreLogin();
+  function toInt(v){ const n=parseInt(v,10); return Number.isFinite(n)?n:0; }
+  function toNum(v){ const n=parseFloat(v); return Number.isFinite(n)?n:0; }
 
   function toggleMode(){
+    const m = fields.mode.value;
+    $("driveBlock").style.display = (m==="car" || m==="bike") ? "" : "none";
+    $("flyBlock").style.display   = (m==="fly") ? "" : "none";
+    out.fuelRow.style.display     = (m==="fly") ? "none" : "";
+  }
+  fields.mode.addEventListener("change", toggleMode);
+  toggleMode();
+
+  $("calcBtn").addEventListener("click", () => {
+    const dist = toNum(fields.distance.value);
+    if(!dist || dist <= 0){
+      out.distErr.hidden = false;
+      return;
+    }
+    out.distErr.hidden = true;
+
+    const travellers = Math.max(1, toInt(fields.travellers.value) || 1);
     const mode = fields.mode.value;
-    fields.drivingFields.style.display = (mode === 'car' || mode === 'bike') ? '' : 'none';
-    fields.flyingFields.style.display = (mode === 'fly') ? '' : 'none';
-    out.timeBlock.style.display = (mode === 'fly') ? 'none' : '';
-  }
-  fields.mode.addEventListener('change', toggleMode);
+    let transport = 0;
+    let fuelLitres = 0;
+    let transportDetail = "";
 
-  function saveState(){
-    const data = {};
-    for (const k in fields){
-      const el = fields[k];
-      if (!el || el.tagName === 'DIV') continue;
-      data[k] = el.value ?? '';
-    }
-    data.theme = theme;
-    localStorage.setItem(KEY, JSON.stringify(data));
-  }
-  function restoreState(){
-    try{
-      const raw = localStorage.getItem(KEY);
-      if(!raw) { toggleMode(); return; }
-      const data = JSON.parse(raw);
-      for (const k in data){ if(fields[k] && fields[k].tagName !== 'DIV') fields[k].value = data[k]; }
-      if(data.theme) setTheme(data.theme);
-      toggleMode();
-    }catch(e){}
-  }
-
-  async function fetchWeather(lat, lon, placeLabel){
-    try{
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,precipitation&timezone=auto`;
-      const res = await fetch(url);
-      if(!res.ok) throw new Error('weather failed');
-      const d = await res.json();
-      const c = d.current || {};
-      out.wxPlace.textContent = `• ${placeLabel}`;
-      out.wxNow.textContent = `${(c.temperature_2m ?? '?')}°C`;
-      out.wxMore.textContent = `Wind ${(c.wind_speed_10m ?? '?')} km/h • Precip ${(c.precipitation ?? '?')} mm (now)`;
-    }catch(e){
-      out.wxPlace.textContent = '';
-      out.wxNow.textContent = '—';
-      out.wxMore.textContent = 'Weather unavailable.';
-    }
-  }
-
-  function hoursAndMinutes(h){
-    const totalMin = Math.round(h*60);
-    const HH = Math.floor(totalMin/60);
-    const MM = totalMin % 60;
-    return `${HH}h ${MM}m`;
-  }
-
-  async function nominatim(query){
-    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
-    const res = await fetch(url, {headers:{'Accept':'application/json'}});
-    if(!res.ok) throw new Error('Geocoding failed');
-    const data = await res.json();
-    if(!data?.length) throw new Error('Place not found: ' + query);
-    const { lat, lon, display_name } = data[0];
-    return { lat:+lat, lon:+lon, name:display_name };
-  }
-  async function reverse(lat, lon){
-    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
-    const res = await fetch(url);
-    if(!res.ok) return `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
-    const d = await res.json();
-    return d?.display_name || `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
-  }
-  async function osrmRoute(points){
-    const coords = points.map(p => `${p.lon},${p.lat}`).join(';');
-    const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`;
-    const res = await fetch(url);
-    if(!res.ok) throw new Error('Routing failed');
-    const data = await res.json();
-    if(!data?.routes?.length) throw new Error('No route');
-    const r = data.routes[0];
-    return { distanceKm: r.distance/1000, durationHrs: r.duration/3600, geometry: r.geometry };
-  }
-
-  function clearRoute(){
-    if(routeLayer){ map.removeLayer(routeLayer); routeLayer = null; }
-  }
-  function setMarker(which, p, label){
-    if(which==='from'){ if(mFrom) map.removeLayer(mFrom); mFrom = L.marker([p.lat,p.lon], {icon:iconFrom, title:label}).addTo(map); }
-    if(which==='via'){ if(mVia) map.removeLayer(mVia); if(p) mVia = L.marker([p.lat,p.lon], {icon:iconVia, title:label}).addTo(map); }
-    if(which==='to'){ if(mTo) map.removeLayer(mTo); mTo = L.marker([p.lat,p.lon], {icon:iconTo, title:label}).addTo(map); }
-  }
-
-  async function findRouteFill(){
-    const A = fields.from.value.trim();
-    const B = fields.to.value.trim();
-    const C = fields.via.value.trim();
-    if(!A || !B){ alert('Enter both From and To (Via is optional).'); return; }
-
-    out.routeLine.textContent = 'Finding route…';
-    try{
-      const a = await nominatim(A);
-      const b = await nominatim(B);
-      let points = [a];
-      setMarker('from', a, a.name);
-      if(C){
-        const c = await nominatim(C);
-        points.push(c);
-        setMarker('via', c, c.name);
-      }else{
-        if(mVia){ map.removeLayer(mVia); mVia=null; }
-      }
-      points.push(b);
-      setMarker('to', b, b.name);
-
-      const r = await osrmRoute(points);
-      fields.distance.value = r.distanceKm.toFixed(1);
-
-      clearRoute();
-      routeLayer = L.geoJSON(r.geometry, {weight:5, opacity:0.85}).addTo(map);
-      map.fitBounds(routeLayer.getBounds(), {padding:[30,30]});
-
-      out.routeLine.textContent = `${a.name.split(',')[0]} → ${C? (fields.via.value.split(',')[0] + ' → ') : ''}${b.name.split(',')[0]} • ${r.distanceKm.toFixed(1)} km • ${(fields.mode.value==='fly')?'Flying':'Driving'} route`;
-      out.driveTime.textContent = `${Math.floor(r.durationHrs)}h ${Math.round((r.durationHrs%1)*60)}m`;
-      out.timeBlock.style.display = (fields.mode.value==='fly') ? 'none' : '';
-
-      fetchWeather(b.lat, b.lon, b.name.split(',')[0]);
-
-      saveState();
-    }catch(err){
-      console.error(err);
-      alert(err.message || 'Could not find route. Try different place names.');
-    }
-  }
-
-  $('useGps').addEventListener('click', () => {
-    if(!('geolocation' in navigator)){ alert('GPS not available'); return; }
-    $('fromHint').textContent = 'Getting your location…';
-    navigator.geolocation.getCurrentPosition(async pos => {
-      const {latitude:lat, longitude:lon} = pos.coords;
-      const label = await reverse(lat, lon);
-      fields.from.value = label;
-      setMarker('from', {lat,lon}, label);
-      map.setView([lat,lon], 12);
-      $('fromHint').textContent = 'GPS set. You can press “Find Route” now.';
-    }, () => {
-      $('fromHint').textContent = 'Could not access GPS.';
-    }, {enableHighAccuracy:true, timeout:12000, maximumAge:0});
-  });
-
-  $('swap').addEventListener('click', ()=>{
-    const a = fields.from.value; fields.from.value = fields.to.value; fields.to.value = a;
-    const f = mFrom?.getLatLng?.(); const t = mTo?.getLatLng?.();
-    if(f && t){ setMarker('from', {lat:t.lat, lon:t.lng}, 'From'); setMarker('to', {lat:f.lat, lon:f.lng}, 'To'); }
-  });
-
-  function calcDriving(distance, mileage, fuelPrice, tollPerKm, travellers, avgSpeed){
-    const fuelNeeded = distance / mileage;
-    const fuelCost = fuelNeeded * fuelPrice;
-    const tollCost = distance * tollPerKm;
-    const total = fuelCost + tollCost;
-    const perPerson = total / travellers;
-    const timeHrs = distance / avgSpeed;
-    return {
-      total, perPerson, fuelNeeded, timeHrs,
-      fuelCost, tollCost,
-      breakup: [
-        `Fuel ${INR2.format(fuelCost)}`,
-        tollPerKm>0 ? `Tolls ${INR2.format(tollCost)}` : null
-      ].filter(Boolean).join(' • ')
-    };
-  }
-  function calcFlying(distance, farePerKm, passengers, isReturn){
-    const legs = (isReturn==='return') ? 2 : 1;
-    const perTicket = distance * farePerKm * legs;
-    return {
-      total: perTicket * passengers,
-      perPerson: perTicket,
-      breakup: `${legs===2?'Return':'One-way'} • ${distance} km × ₹${farePerKm}/km × ${legs} leg${legs>1?'s':''}`
-    };
-  }
-
-  function calcStay(nights, hotelRate, travellers, pplPerRoom){
-    const n     = Math.max(0, toInt(nights));
-    const rate  = Math.max(0, toNum(hotelRate));
-    const ppl   = Math.max(1, toInt(pplPerRoom) || 2);
-    const t     = Math.max(0, toInt(travellers));
-
-    if (n <= 0 || rate <= 0 || t <= 0) {
-      return { rooms: 0, total: 0, perPerson: 0, nights: n };
-    }
-    const rooms = Math.ceil(t / ppl);
-    const total = n * rate * rooms;
-    return { rooms, total, perPerson: t ? total / t : 0, nights: n };
-  }
-  function calcFood(nights, travellers, perDay){
-    const days = Math.max(0, toInt(nights));
-    const per  = Math.max(0, toNum(perDay));
-    const ppl  = Math.max(0, toInt(travellers));
-    if (days <= 0 || per <= 0 || ppl <= 0) return { total: 0, perPerson: 0 };
-    const total = days * ppl * per;
-    return { total, perPerson: ppl ? total / ppl : 0 };
-  }
-
-  $('shareBtn').addEventListener('click', () => {
-    const params = new URLSearchParams({
-      from: fields.from.value, to: fields.to.value, via: fields.via.value, mode: fields.mode.value,
-      distance: fields.distance.value, mileage: fields.mileage.value, fuel: fields.fuel.value,
-      speed: fields.speed.value, tollPerKm: fields.tollPerKm.value, travellers: fields.travellers.value,
-      tickets: fields.tickets.value, farePerKm: fields.farePerKm.value, isReturn: fields.isReturn.value,
-      nights: fields.nights.value, hotelRate: fields.hotelRate.value, pplPerRoom: fields.pplPerRoom.value,
-      foodPerDay: fields.foodPerDay.value, extras: fields.extras.value
-    });
-    const url = `${location.origin}${location.pathname}?${params.toString()}`;
-    navigator.clipboard.writeText(url).then(()=> alert('Link copied!')).catch(()=> prompt('Copy link:', url));
-  });
-
-  (function readParams(){
-    const q = new URLSearchParams(location.search);
-    const set = (k)=>{ if(q.has(k) && fields[k]) fields[k].value = q.get(k); };
-    ['from','to','via','mode','distance','mileage','fuel','speed','tollPerKm','travellers','tickets','farePerKm','isReturn','nights','hotelRate','pplPerRoom','foodPerDay','extras'].forEach(set);
-    toggleMode();
-  })();
-
-  $('routeBtn').addEventListener('click', findRouteFill);
-
-  $('calcForm').addEventListener('submit', (e)=>{
-    e.preventDefault();
-    const distance = parseFloat(fields.distance.value);
-    if(!distance || distance <= 0){ fields.distanceErr.hidden = false; return; }
-    fields.distanceErr.hidden = true;
-
-    const mode = fields.mode.value;
-    const travellers = Math.max(1, toInt(fields.travellers.value));
-    let transport, transportBreak;
-
-    if(mode==='car' || mode==='bike'){
-      const mileage = Math.max(1, toNum(fields.mileage.value));
-      const fuel = Math.max(1, toNum(fields.fuel.value));
-      const toll = Math.max(0, toNum(fields.tollPerKm.value));
-      const speed = Math.max(10, toNum(fields.speed.value) || 60);
-      const res = calcDriving(distance, mileage, fuel, toll, travellers, speed);
-      out.fuelBlock.style.display = '';
-      out.timeBlock.style.display = '';
-      out.fuelNeeded.textContent = `${res.fuelNeeded.toFixed(2)} L`;
-      if(!out.driveTime.textContent || out.driveTime.textContent === '0 h'){ out.driveTime.textContent = hoursAndMinutes(res.timeHrs); }
-      transport = res.total; transportBreak = res.breakup;
-    }else{
-      const passengers = Math.max(1, toInt(fields.tickets.value) || 1);
-      const farePerKm = Math.max(1, toNum(fields.farePerKm.value) || 1);
-      const isReturn = fields.isReturn.value;
-      const res = calcFlying(distance, farePerKm, passengers, isReturn);
-      out.fuelBlock.style.display = 'none';
-      out.timeBlock.style.display = 'none';
-      transport = res.total; transportBreak = res.breakup;
+    if(mode === "car" || mode === "bike"){
+      const mileage = Math.max(1, toNum(fields.mileage.value) || 10);
+      const fuelPrice = Math.max(1, toNum(fields.fuel.value) || 100);
+      const tollPerKm = Math.max(0, toNum(fields.tollPerKm.value));
+      fuelLitres = dist / mileage;
+      const fuelCost = fuelLitres * fuelPrice;
+      const tollCost = dist * tollPerKm;
+      transport = fuelCost + tollCost;
+      transportDetail = `Fuel ${nf2.format(fuelCost)}`
+                      + (tollPerKm>0 ? ` + Tolls ${nf2.format(tollCost)}` : "");
+    } else {
+      const farePerKm = Math.max(1, toNum(fields.farePerKm.value) || 5);
+      const legs = fields.tripType.value === "return" ? 2 : 1;
+      const perTicket = dist * farePerKm * legs;
+      transport = perTicket * travellers;
+      transportDetail = `${legs===2?"Return":"One-way"} • ${dist.toFixed(1)} km × ₹${farePerKm}/km`;
     }
 
-    const nights = toInt(fields.nights.value);
-    const hotelRate = toNum(fields.hotelRate.value);
+    // stay
+    const nights = Math.max(0, toInt(fields.nights.value));
+    const hotelRate = Math.max(0, toNum(fields.hotelRate.value));
     const pplPerRoom = Math.max(1, toInt(fields.pplPerRoom.value) || 2);
-    const foodPerDay = toNum(fields.foodPerDay.value);
+    let rooms = 0, stayTotal = 0;
+    if(nights>0 && hotelRate>0){
+      rooms = Math.ceil(travellers / pplPerRoom);
+      stayTotal = rooms * hotelRate * nights;
+    }
+
+    // food
+    const foodPerDay = Math.max(0, toNum(fields.foodPerDay.value));
+    let foodTotal = 0;
+    if(nights>0 && foodPerDay>0){
+      foodTotal = nights * travellers * foodPerDay;
+    }
+
     const extras = Math.max(0, toNum(fields.extras.value));
 
-    const stay = calcStay(nights, hotelRate, travellers, pplPerRoom);
-    const food = calcFood(nights, travellers, foodPerDay);
+    const grand = transport + stayTotal + foodTotal + extras;
+    const perHead = travellers ? grand / travellers : grand;
 
-    if (stay.total > 0 && stay.rooms > 0) {
-      out.roomsBlock.style.display = '';
-      out.roomsNeeded.textContent = String(stay.rooms);
-    } else {
-      out.roomsBlock.style.display = 'none';
-      out.roomsNeeded.textContent = '0';
+    // write outputs
+    out.summaryRoute.textContent =
+      (fields.from.value || "Start") + " → " + (fields.to.value || "Destination");
+    out.summaryDist.textContent = dist.toFixed(1) + " km";
+    out.summaryMode.textContent = mode === "fly" ? "Flying" : "Driving";
+
+    out.transportTotal.textContent = nf0.format(transport);
+    out.stayTotal.textContent      = nf0.format(stayTotal);
+    out.foodTotal.textContent      = nf0.format(foodTotal);
+    out.extrasTotal.textContent    = nf0.format(extras);
+    out.grandTotal.textContent     = nf0.format(grand);
+    out.perPerson.textContent      = nf0.format(perHead);
+
+    if(mode === "fly"){
+      out.fuelRow.style.display = "none";
+    }else{
+      out.fuelRow.style.display = "";
+      out.fuelNeeded.textContent = fuelLitres.toFixed(2) + " L";
     }
 
-    const grand = transport + stay.total + food.total + extras;
-    const perPersonAll = travellers ? grand / travellers : grand;
+    if(rooms>0 && nights>0){
+      out.roomsRow.style.display = "";
+      out.roomsInfo.textContent = rooms + " × " + nights + " night" + (nights!==1?"s":"");
+    }else{
+      out.roomsRow.style.display = "none";
+      out.roomsInfo.textContent = "0 × 0";
+    }
 
-    out.transportTotal.textContent = INR0.format(transport);
-    out.stayTotal.textContent      = INR0.format(stay.total);
-    out.foodTotal.textContent      = INR0.format(food.total);
-    out.extrasTotal.textContent    = INR0.format(extras);
-    out.grandTotal.textContent     = INR0.format(grand);
-    out.grandPerPerson.textContent = INR0.format(perPersonAll);
+    const parts = [
+      `Transport: ${nf2.format(transport)} (${transportDetail})`,
+      stayTotal>0 ? `Stay: ${nf2.format(stayTotal)} (${rooms} room(s) × ${nights} night${nights!==1?"s":""})` : null,
+      foodTotal>0 ? `Food: ${nf2.format(foodTotal)} (${travellers} people × ₹${foodPerDay || 0}/day × ${nights || 0} days)` : null,
+      extras>0 ? `Extras: ${nf2.format(extras)}` : null
+    ].filter(Boolean);
 
-    const from = fields.from.value.trim(), via = fields.via.value.trim(), to = fields.to.value.trim();
-    const routeTxt = `${from||'—'} ${via ? ('→ '+via) : ''} → ${to||'—'} • ${distance.toFixed(1)} km • Mode: ${mode==='fly'?'Flying':'Driving'}`;
-    out.routeLine.textContent = routeTxt;
-
-    out.breakup.textContent = [
-      `Transport: ${INR2.format(transport)} (${transportBreak})`,
-      stay.total>0 ? `Stay: ${INR2.format(stay.total)} (${stay.rooms} room(s), ${nights} night${nights!==1?'s':''})` : null,
-      food.total>0 ? `Food: ${INR2.format(food.total)} (${travellers} × ₹${foodPerDay||0}/day × ${nights||0}d)` : null,
-      extras>0 ? `Extras: ${INR2.format(extras)}` : null
-    ].filter(Boolean).join(' • ');
-
-    out.resultWrap.hidden = false;
-    saveState();
+    out.breakdownText.textContent = parts.length ? parts.join(" • ") :
+      "No stay / food values entered yet. Add nights, hotel rate and food estimate for a complete split.";
   });
 
-  $('resetBtn').addEventListener('click', ()=>{
-    $('calcForm').reset(); toggleMode();
-    out.resultWrap.hidden = true; out.routeLine.textContent = 'Fill places and click “Find Route”.';
-    out.wxPlace.textContent=''; out.wxNow.textContent=''; out.wxMore.textContent='';
-    out.roomsBlock.style.display='none'; out.roomsNeeded.textContent='0';
-    if(mFrom) map.removeLayer(mFrom); mFrom=null;
-    if(mVia) map.removeLayer(mVia); mVia=null;
-    if(mTo) map.removeLayer(mTo); mTo=null;
-    clearRoute(); localStorage.removeItem(KEY);
-    map.setView([20.5937, 78.9629], 5);
+  $("resetBtn").addEventListener("click", () => {
+    Object.values(fields).forEach(el => { el.value = el.defaultValue || ""; });
+    $("mode").value = "car"; toggleMode();
+    out.summaryRoute.textContent = "—";
+    out.summaryDist.textContent = "0 km";
+    out.summaryMode.textContent = "–";
+    out.transportTotal.textContent = "₹0";
+    out.stayTotal.textContent = "₹0";
+    out.foodTotal.textContent = "₹0";
+    out.extrasTotal.textContent = "₹0";
+    out.grandTotal.textContent = "₹0";
+    out.perPerson.textContent = "₹0";
+    out.fuelNeeded.textContent = "0 L";
+    out.roomsInfo.textContent = "0 × 0";
+    out.breakdownText.textContent = "Fill the details and hit calculate to see the cost breakup.";
+    out.distErr.hidden = true;
   });
-
-  const loginModal = $('loginModal');
-  $('loginBtn').addEventListener('click', ()=> loginModal.classList.add('open'));
-  $('closeLogin').addEventListener('click', ()=> loginModal.classList.remove('open'));
-  $('saveLogin').addEventListener('click', ()=>{
-    const name = ($('uName').value||'').trim();
-    const email = ($('uEmail').value||'').trim();
-    const phone = ($('uPhone').value||'').trim();
-    const remember = $('uRemember').value === 'yes';
-    if(!/^\S+@\S+\.\S+$/.test(email)){ alert('Enter a valid email'); return; }
-    if(!/^[0-9+\-\s]{8,20}$/.test(phone)){ alert('Enter a valid phone'); return; }
-    const data = { name, email, phone };
-    if(remember) localStorage.setItem(LOGINKEY, JSON.stringify(data));
-    out.helloUser.textContent = `Hi, ${name || 'traveller'} 👋`;
-    loginModal.classList.remove('open');
-  });
-  function restoreLogin(){
-    try{
-      const raw = localStorage.getItem(LOGINKEY);
-      if(!raw) return;
-      const d = JSON.parse(raw);
-      $('uName').value = d.name || '';
-      $('uEmail').value = d.email || '';
-      $('uPhone').value = d.phone || '';
-      out.helloUser.textContent = `Hi, ${d.name || 'traveller'} 👋`;
-    }catch(e){}
-  }
-
 })();
 </script>
 </body>
