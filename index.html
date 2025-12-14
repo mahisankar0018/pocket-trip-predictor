@@ -1,120 +1,140 @@
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.*;
+import java.util.*;
 
-public class TripCostEstimator extends JFrame {
+/*
+ * Trip Cost Estimator
+ * Console-based Java Application
+ * Works perfectly in VS Code
+ */
 
-    JTextField originField, destinationField, distanceField, daysField;
-    JTextField fuelField, hotelField, foodField;
-    JComboBox<String> modeBox;
-    JTextArea resultArea;
+interface CostComponent {
+    double calculateCost();
+}
 
-    public TripCostEstimator() {
+class TravelCost implements CostComponent {
+    private double distance;
+    private double costPerKm;
 
-        setTitle("Trip Cost Estimator");
-        setSize(500, 600);
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
-
-        setLayout(new BorderLayout());
-
-        JPanel form = new JPanel(new GridLayout(9, 2, 10, 10));
-        form.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
-
-        originField = new JTextField();
-        destinationField = new JTextField();
-        distanceField = new JTextField();
-        daysField = new JTextField();
-        fuelField = new JTextField();
-        hotelField = new JTextField();
-        foodField = new JTextField();
-
-        modeBox = new JComboBox<>(new String[]{"Car", "Train", "Flight"});
-
-        form.add(new JLabel("Origin City:"));
-        form.add(originField);
-
-        form.add(new JLabel("Destination City:"));
-        form.add(destinationField);
-
-        form.add(new JLabel("Distance (km):"));
-        form.add(distanceField);
-
-        form.add(new JLabel("Number of Days:"));
-        form.add(daysField);
-
-        form.add(new JLabel("Travel Mode:"));
-        form.add(modeBox);
-
-        form.add(new JLabel("Fuel Price (per litre):"));
-        form.add(fuelField);
-
-        form.add(new JLabel("Hotel Cost (per night):"));
-        form.add(hotelField);
-
-        form.add(new JLabel("Food Cost (per day):"));
-        form.add(foodField);
-
-        JButton calculateBtn = new JButton("Calculate Trip Cost");
-
-        resultArea = new JTextArea(8, 30);
-        resultArea.setEditable(false);
-        resultArea.setFont(new Font("Monospaced", Font.PLAIN, 13));
-
-        calculateBtn.addActionListener(e -> calculateCost());
-
-        add(form, BorderLayout.NORTH);
-        add(calculateBtn, BorderLayout.CENTER);
-        add(new JScrollPane(resultArea), BorderLayout.SOUTH);
+    public TravelCost(double distance, double costPerKm) {
+        this.distance = distance;
+        this.costPerKm = costPerKm;
     }
 
-    private void calculateCost() {
-        try {
-            double distance = Double.parseDouble(distanceField.getText());
-            int days = Integer.parseInt(daysField.getText());
-            double fuelPrice = Double.parseDouble(fuelField.getText());
-            double hotel = Double.parseDouble(hotelField.getText());
-            double food = Double.parseDouble(foodField.getText());
+    @Override
+    public double calculateCost() {
+        return distance * costPerKm;
+    }
+}
 
-            String mode = (String) modeBox.getSelectedItem();
+class StayCost implements CostComponent {
+    private int days;
+    private double costPerDay;
 
-            double travelCost = 0;
+    public StayCost(int days, double costPerDay) {
+        this.days = days;
+        this.costPerDay = costPerDay;
+    }
 
-            if (mode.equals("Car")) {
-                travelCost = (distance / 15) * fuelPrice;
-            } else if (mode.equals("Train")) {
-                travelCost = distance * 1.5;
-            } else if (mode.equals("Flight")) {
-                travelCost = distance * 5;
-            }
+    @Override
+    public double calculateCost() {
+        return days * costPerDay;
+    }
+}
 
-            double hotelCost = hotel * days;
-            double foodCost = food * days;
-            double total = travelCost + hotelCost + foodCost;
+class FoodCost implements CostComponent {
+    private int days;
+    private double costPerDay;
 
-            resultArea.setText(
-                    "Trip Cost Estimation\n" +
-                    "---------------------------\n" +
-                    "From: " + originField.getText() + "\n" +
-                    "To: " + destinationField.getText() + "\n\n" +
-                    "Travel Cost : ₹ " + String.format("%.2f", travelCost) + "\n" +
-                    "Hotel Cost  : ₹ " + String.format("%.2f", hotelCost) + "\n" +
-                    "Food Cost   : ₹ " + String.format("%.2f", foodCost) + "\n" +
-                    "---------------------------\n" +
-                    "Total Cost  : ₹ " + String.format("%.2f", total)
-            );
+    public FoodCost(int days, double costPerDay) {
+        this.days = days;
+        this.costPerDay = costPerDay;
+    }
 
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this,
-                    "Please enter valid numeric values",
-                    "Input Error",
-                    JOptionPane.ERROR_MESSAGE);
+    @Override
+    public double calculateCost() {
+        return days * costPerDay;
+    }
+}
+
+class MiscCost implements CostComponent {
+    private double[] expenses;
+
+    public MiscCost(double[] expenses) {
+        this.expenses = expenses;
+    }
+
+    @Override
+    public double calculateCost() {
+        double sum = 0;
+        for (double e : expenses) {
+            sum += e;
         }
+        return sum;
     }
+}
+
+public class TripCostEstimator {
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            new TripCostEstimator().setVisible(true);
-        });
+
+        Scanner sc = new Scanner(System.in);
+        List<CostComponent> components = new ArrayList<>();
+
+        try {
+            System.out.println("===================================");
+            System.out.println("        TRIP COST ESTIMATOR");
+            System.out.println("===================================");
+
+            System.out.print("Enter Origin City: ");
+            String origin = sc.nextLine();
+
+            System.out.print("Enter Destination City: ");
+            String destination = sc.nextLine();
+
+            System.out.print("Enter Distance (in KM): ");
+            double distance = sc.nextDouble();
+
+            System.out.print("Enter Travel Cost per KM: ");
+            double costPerKm = sc.nextDouble();
+            components.add(new TravelCost(distance, costPerKm));
+
+            System.out.print("Enter Number of Days: ");
+            int days = sc.nextInt();
+
+            System.out.print("Enter Stay Cost per Day: ");
+            double stayPerDay = sc.nextDouble();
+            components.add(new StayCost(days, stayPerDay));
+
+            System.out.print("Enter Food Cost per Day: ");
+            double foodPerDay = sc.nextDouble();
+            components.add(new FoodCost(days, foodPerDay));
+
+            System.out.print("Enter Number of Miscellaneous Expenses: ");
+            int n = sc.nextInt();
+
+            double[] misc = new double[n];
+            for (int i = 0; i < n; i++) {
+                System.out.print("Expense " + (i + 1) + ": ");
+                misc[i] = sc.nextDouble();
+            }
+            components.add(new MiscCost(misc));
+
+            double total = 0;
+            for (CostComponent c : components) {
+                total += c.calculateCost();
+            }
+
+            System.out.println("\n========== TRIP SUMMARY ==========");
+            System.out.println("From       : " + origin);
+            System.out.println("To         : " + destination);
+            System.out.println("Days       : " + days);
+            System.out.println("---------------------------------");
+            System.out.println("Total Estimated Cost: ₹" + total);
+            System.out.println("=================================");
+
+        } catch (InputMismatchException e) {
+            System.out.println("❌ Invalid input! Please enter numeric values only.");
+        } finally {
+            sc.close();
+        }
     }
 }
