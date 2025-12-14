@@ -16,27 +16,65 @@ public class TripCostEstimatorApplication {
 class TripUIController {
 
     @GetMapping("/")
-    public String home() {
+    public String ui() {
         return """
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Trip cost estimator</title>
 <meta charset="UTF-8">
+<title>Trip cost estimator</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
-body{margin:0;font-family:Inter,Arial;background:#020617;color:#e5e7eb}
-h1{text-align:center;padding:14px}
-.container{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:16px}
-.card{background:#0f172a;border-radius:14px;padding:16px}
-input,button{width:100%;padding:10px;margin-top:8px;border-radius:8px;border:none}
-button{background:#22c55e;color:#022c22;font-weight:bold;cursor:pointer}
-#map{height:420px;border-radius:14px;margin:16px}
-.row{display:flex;justify-content:space-between;margin:6px 0}
-hr{border:0;border-top:1px dashed #334155;margin:10px 0}
+body{
+  margin:0;
+  font-family:Arial, sans-serif;
+  background:#020617;
+  color:#e5e7eb;
+}
+h1{text-align:center;margin:20px 0}
+.container{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:20px;
+  padding:20px;
+}
+.card{
+  background:#0f172a;
+  padding:20px;
+  border-radius:14px;
+}
+input,button{
+  width:100%;
+  padding:12px;
+  margin-top:10px;
+  border-radius:8px;
+  border:none;
+}
+button{
+  background:#22c55e;
+  color:#022c22;
+  font-weight:bold;
+  cursor:pointer;
+}
+#map{
+  height:420px;
+  margin:20px;
+  border-radius:14px;
+}
+.hidden{display:none}
+.row{
+  display:flex;
+  justify-content:space-between;
+  margin:8px 0;
+}
+hr{
+  border:none;
+  border-top:1px dashed #334155;
+  margin:12px 0;
+}
 </style>
 </head>
 
@@ -46,40 +84,47 @@ hr{border:0;border-top:1px dashed #334155;margin:10px 0}
 
 <div class="container">
 
-<!-- LEFT -->
+<!-- INPUT SECTION -->
 <div class="card">
-<input id="from" placeholder="From (Hyderabad)">
-<input id="to" placeholder="To (Bengaluru)">
-<button onclick="findRoute()">Find Route</button>
+<h3>Trip details</h3>
 
-<input id="mileage" type="number" value="18" placeholder="Mileage (km/L)">
-<input id="fuelPrice" type="number" value="110" placeholder="Fuel price ₹/L">
-<input id="travellers" type="number" value="2" placeholder="Travellers">
-<input id="hotelRate" type="number" value="1500" placeholder="Hotel ₹/room/night">
-<input id="nights" type="number" value="1" placeholder="Nights">
-<input id="food" type="number" value="300" placeholder="Food ₹/person/day">
-<input id="extras" type="number" value="0" placeholder="Extras">
+<input id="from" placeholder="Origin (e.g., Hyderabad)">
+<input id="to" placeholder="Destination (e.g., Bengaluru)">
 
-<button onclick="calculate()">Calculate cost</button>
-<button onclick="findHotels()">🏨 Find Hotels</button>
-</div>
-
-<!-- RIGHT -->
-<div class="card">
-<h3>Trip budget overview</h3>
-
-<div class="row"><span>Distance</span><span><b id="dist">0</b> km</span></div>
-<div class="row"><span>Transport total</span><span>₹<b id="transport">0</b></span></div>
-<div class="row"><span>Stay total</span><span>₹<b id="stay">0</b></span></div>
-<div class="row"><span>Food total</span><span>₹<b id="foodTotal">0</b></span></div>
-<div class="row"><span>Extras</span><span>₹<b id="extraTotal">0</b></span></div>
-<div class="row"><span>Fuel needed</span><span><b id="fuelNeed">0</b> L</span></div>
-<div class="row"><span>Rooms × nights</span><span><b id="rooms">0</b> × <b id="nightsOut">0</b></span></div>
+<button onclick="findRoute()">Find route & distance</button>
 
 <hr>
 
-<div class="row"><span><b>Grand total</b></span><span>₹<b id="grand">0</b></span></div>
-<div class="row"><span><b>Per person</b></span><span>₹<b id="per">0</b></span></div>
+<input id="mileage" type="number" placeholder="Vehicle mileage (km/L)" value="18">
+<input id="fuelPrice" type="number" placeholder="Fuel price (₹/L)" value="110">
+
+<input id="travellers" type="number" placeholder="Number of travellers" value="2">
+
+<input id="hotelRate" type="number" placeholder="Hotel cost (₹ per room per night)" value="1500">
+<input id="nights" type="number" placeholder="Number of nights" value="1">
+
+<input id="food" type="number" placeholder="Food cost (₹ per person per day)" value="300">
+<input id="extras" type="number" placeholder="Extra expenses (₹)" value="0">
+
+<button onclick="calculateCost()">Calculate trip cost</button>
+<button onclick="findHotels()">🏨 Find hotels near destination</button>
+</div>
+
+<!-- RESULT SECTION -->
+<div class="card hidden" id="resultCard">
+<h3>Trip budget overview</h3>
+
+<div class="row"><span>Distance</span><span><b id="rDist"></b> km</span></div>
+<div class="row"><span>Fuel needed</span><span><b id="rFuel"></b> L</span></div>
+<div class="row"><span>Transport cost</span><span>₹<b id="rTransport"></b></span></div>
+<div class="row"><span>Stay cost</span><span>₹<b id="rStay"></b></span></div>
+<div class="row"><span>Food cost</span><span>₹<b id="rFood"></b></span></div>
+<div class="row"><span>Extras</span><span>₹<b id="rExtra"></b></span></div>
+
+<hr>
+
+<div class="row"><strong>Grand total</strong><strong>₹<b id="rTotal"></b></strong></div>
+<div class="row"><strong>Per person</strong><strong>₹<b id="rPer"></b></strong></div>
 
 <hr>
 <h4>🌤 Weather</h4>
@@ -93,77 +138,85 @@ hr{border:0;border-top:1px dashed #334155;margin:10px 0}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-const map=L.map("map").setView([20.5937,78.9629],5);
+let distanceKm = 0;
+
+const map = L.map("map").setView([20.5937,78.9629],5);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 let routeLayer;
 
-async function geo(p){
- const r=await fetch("https://nominatim.openstreetmap.org/search?format=json&q="+p);
- const d=await r.json();
- return {lat:+d[0].lat,lon:+d[0].lon};
+async function geo(place){
+  const r = await fetch(
+    "https://nominatim.openstreetmap.org/search?format=json&q="+place
+  );
+  const d = await r.json();
+  return {lat:+d[0].lat, lon:+d[0].lon};
 }
 
 async function findRoute(){
- const A=await geo(from.value);
- const B=await geo(to.value);
+  const A = await geo(from.value);
+  const B = await geo(to.value);
 
- const r=await fetch(
- "https://router.project-osrm.org/route/v1/driving/"
- +A.lon+","+A.lat+";"+B.lon+","+B.lat+
- "?overview=full&geometries=geojson"
- );
- const data=await r.json();
- const route=data.routes[0];
+  const r = await fetch(
+    `https://router.project-osrm.org/route/v1/driving/${A.lon},${A.lat};${B.lon},${B.lat}?overview=full&geometries=geojson`
+  );
+  const data = await r.json();
+  const route = data.routes[0];
 
- const km=(route.distance/1000).toFixed(1);
- dist.innerText=km;
+  distanceKm = route.distance / 1000;
 
- if(routeLayer) map.removeLayer(routeLayer);
- routeLayer=L.geoJSON(route.geometry).addTo(map);
- map.fitBounds(routeLayer.getBounds());
+  if(routeLayer) map.removeLayer(routeLayer);
+  routeLayer = L.geoJSON(route.geometry).addTo(map);
+  map.fitBounds(routeLayer.getBounds());
 
- loadWeather(B.lat,B.lon);
+  loadWeather(B.lat, B.lon);
 }
 
 async function loadWeather(lat,lon){
- const r=await fetch(
- "https://api.open-meteo.com/v1/forecast?latitude="+lat+
- "&longitude="+lon+"&current=temperature_2m"
- );
- const d=await r.json();
- weather.innerText="Temperature: "+d.current.temperature_2m+" °C";
+  const r = await fetch(
+    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m`
+  );
+  const d = await r.json();
+  weather.innerText = "Temperature: " + d.current.temperature_2m + " °C";
 }
 
-function calculate(){
- const distance=+dist.innerText||0;
- const mileage=+mileage.value;
- const fuelP=+fuelPrice.value;
- const trav=+travellers.value;
- const rate=+hotelRate.value;
- const n=+nights.value;
- const foodP=+food.value;
- const extra=+extras.value;
+function calculateCost(){
+  if(distanceKm === 0){
+    alert("Please find route first");
+    return;
+  }
 
- const fuelNeeded=(distance/mileage);
- const transport=fuelNeeded*fuelP;
- const rooms=Math.ceil(trav/2);
- const stay=rooms*n*rate;
- const foodCost=trav*n*foodP;
- const total=transport+stay+foodCost+extra;
+  const mileage = +mileage.value;
+  const fuelP = +fuelPrice.value;
+  const trav = +travellers.value;
+  const rate = +hotelRate.value;
+  const nightsV = +nights.value;
+  const foodP = +food.value;
+  const extra = +extras.value;
 
- fuelNeed.innerText=fuelNeeded.toFixed(1);
- transport.innerText=transport.toFixed(0);
- stay.innerText=stay;
- foodTotal.innerText=foodCost;
- extraTotal.innerText=extra;
- rooms.innerText=rooms;
- nightsOut.innerText=n;
- grand.innerText=total.toFixed(0);
- per.innerText=(total/trav).toFixed(0);
+  const fuelNeeded = distanceKm / mileage;
+  const transport = fuelNeeded * fuelP;
+  const rooms = Math.ceil(trav / 2);
+  const stay = rooms * nightsV * rate;
+  const foodCost = trav * nightsV * foodP;
+
+  const total = transport + stay + foodCost + extra;
+
+  rDist.innerText = distanceKm.toFixed(1);
+  rFuel.innerText = fuelNeeded.toFixed(1);
+  rTransport.innerText = transport.toFixed(0);
+  rStay.innerText = stay;
+  rFood.innerText = foodCost;
+  rExtra.innerText = extra;
+  rTotal.innerText = total.toFixed(0);
+  rPer.innerText = (total / trav).toFixed(0);
+
+  resultCard.classList.remove("hidden");
 }
 
 function findHotels(){
- window.open("https://www.google.com/maps/search/hotels+near+"+to.value);
+  window.open(
+    "https://www.google.com/maps/search/hotels+near+" + to.value
+  );
 }
 </script>
 
