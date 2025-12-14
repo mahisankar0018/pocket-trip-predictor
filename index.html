@@ -20,59 +20,87 @@ public class TripCostEstimator {
 <style>
 body{
     margin:0;
-    font-family:Arial;
-    background:linear-gradient(120deg,#0f172a,#1e293b);
-    color:white;
+    font-family:'Segoe UI',sans-serif;
+    background:#0f172a;
+    color:#e5e7eb;
 }
 .container{
-    max-width:1000px;
+    max-width:1100px;
     margin:20px auto;
+    padding:20px;
+}
+.card{
     background:#020617;
     padding:20px;
-    border-radius:12px;
+    border-radius:14px;
+    margin-bottom:20px;
 }
-h1{text-align:center;color:#22c55e;}
+h1{
+    text-align:center;
+    color:#22c55e;
+}
+.grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:15px;
+}
 input,select{
     width:100%;
     padding:10px;
-    margin:8px 0;
-    border-radius:6px;
+    border-radius:8px;
     border:none;
 }
 button{
     width:100%;
-    padding:12px;
+    padding:14px;
     background:#22c55e;
     border:none;
-    font-size:16px;
+    font-size:17px;
     font-weight:bold;
-    border-radius:8px;
+    border-radius:10px;
     cursor:pointer;
 }
-#map{
-    height:350px;
-    margin-top:15px;
-    border-radius:10px;
-}
-.result{
-    margin-top:20px;
+.suggestions{
     background:#020617;
-    padding:15px;
-    border-radius:10px;
-    font-size:18px;
+    border-radius:6px;
+    max-height:150px;
+    overflow:auto;
+}
+.suggestions div{
+    padding:8px;
+    cursor:pointer;
+}
+.suggestions div:hover{
+    background:#334155;
+}
+#map{
+    height:420px;
+    border-radius:14px;
+}
+.badge{
+    display:inline-block;
+    padding:6px 10px;
+    background:#334155;
+    border-radius:20px;
+    margin:5px 0;
 }
 </style>
 </head>
 
 <body>
 <div class="container">
+
 <h1>Trip Cost Estimator</h1>
 
+<div class="card grid">
+<div>
 <label>Origin</label>
-<input id="from" placeholder="Enter starting place">
+<input id="from" onkeyup="suggest(this,'fromList')" placeholder="Start city">
+<div id="fromList" class="suggestions"></div>
 
 <label>Destination</label>
-<input id="to" placeholder="Enter destination place">
+<input id="to" onkeyup="suggest(this,'toList')" placeholder="Destination city">
+<div id="toList" class="suggestions"></div>
 
 <label>Travel Mode</label>
 <select id="mode">
@@ -81,24 +109,31 @@ button{
 <option value="train">Train</option>
 <option value="flight">Flight</option>
 </select>
+</div>
 
-<label>No. of Days</label>
+<div>
+<label>Days</label>
 <input type="number" id="days" value="1">
 
-<label>No. of Persons</label>
+<label>Persons</label>
 <input type="number" id="persons" value="1">
 
-<label>Hotel cost per day (₹)</label>
-<input type="number" id="hotel" value="1000">
+<label>Hotel / day (₹)</label>
+<input type="number" id="hotel" value="1200">
 
-<label>Food cost per day (₹)</label>
-<input type="number" id="food" value="500">
+<label>Food / day (₹)</label>
+<input type="number" id="food" value="600">
+</div>
+</div>
 
-<button onclick="calculate()">Calculate Trip Cost</button>
+<div class="card">
+<button onclick="calculate()">Calculate Trip</button>
+</div>
 
 <div id="map"></div>
 
-<div class="result" id="result"></div>
+<div class="card" id="output"></div>
+
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -107,50 +142,97 @@ button{
 let map = L.map('map').setView([20.5937,78.9629],5);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
+let routeLine;
 let markers=[];
 
-async function getCoords(place){
-    let res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${place}`);
-    let data = await res.json();
-    return [data[0].lat, data[0].lon];
+/* AUTOCOMPLETE */
+async function suggest(input,listId){
+    let q=input.value;
+    let list=document.getElementById(listId);
+    list.innerHTML="";
+    if(q.length<3) return;
+
+    let res=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=5`);
+    let data=await res.json();
+
+    data.forEach(p=>{
+        let d=document.createElement("div");
+        d.innerText=p.display_name;
+        d.onclick=()=>{input.value=p.display_name;list.innerHTML="";};
+        list.appendChild(d);
+    });
 }
 
+/* GET COORDS */
+async function coords(place){
+    let r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${place}`);
+    let d=await r.json();
+    return [parseFloat(d[0].lat),parseFloat(d[0].lon)];
+}
+
+/* WEATHER */
+async function weather(lat,lon){
+    let r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+    let d=await r.json();
+    return d.current_weather;
+}
+
+/* HOTELS */
+async function hotels(lat,lon){
+    let query=`[out:json];
+    node(around:3000,${lat},${lon})["tourism"="hotel"];
+    out;`;
+    let r=await fetch("https://overpass-api.de/api/interpreter",{method:"POST",body:query});
+    let d=await r.json();
+    return d.elements;
+}
+
+/* MAIN */
 async function calculate(){
-    let from = document.getElementById("from").value;
-    let to = document.getElementById("to").value;
-    let mode = document.getElementById("mode").value;
-    let days = +document.getElementById("days").value;
-    let persons = +document.getElementById("persons").value;
-    let hotel = +document.getElementById("hotel").value;
-    let food = +document.getElementById("food").value;
+    let from=document.getElementById("from").value;
+    let to=document.getElementById("to").value;
+    let mode=document.getElementById("mode").value;
+    let days=+days=document.getElementById("days").value;
+    let persons=+document.getElementById("persons").value;
+    let hotel=+document.getElementById("hotel").value;
+    let food=+document.getElementById("food").value;
 
-    if(!from || !to){ alert("Enter origin and destination"); return; }
+    let c1=await coords(from);
+    let c2=await coords(to);
 
-    let c1 = await getCoords(from);
-    let c2 = await getCoords(to);
-
-    map.setView(c1,6);
     markers.forEach(m=>map.removeLayer(m));
-    markers=[];
+    if(routeLine) map.removeLayer(routeLine);
 
-    let m1 = L.marker(c1).addTo(map).bindPopup("Origin").openPopup();
-    let m2 = L.marker(c2).addTo(map).bindPopup("Destination");
-    markers.push(m1,m2);
+    let m1=L.marker(c1).addTo(map).bindPopup("Origin");
+    let m2=L.marker(c2).addTo(map).bindPopup("Destination");
+    markers=[m1,m2];
 
-    let distance = map.distance(c1,c2)/1000;
+    routeLine=L.polyline([c1,c2],{color:'#22c55e',weight:5}).addTo(map);
+    map.fitBounds(routeLine.getBounds());
 
-    let perKm = {car:8,bike:3,train:2,flight:6}[mode];
-    let travelCost = distance * perKm;
-    let hotelCost = hotel * days * persons;
-    let foodCost = food * days * persons;
-    let total = travelCost + hotelCost + foodCost;
+    let dist=map.distance(c1,c2)/1000;
 
-    document.getElementById("result").innerHTML = `
-        Distance: <b>${distance.toFixed(2)} km</b><br>
-        Travel Cost: ₹${travelCost.toFixed(0)}<br>
-        Hotel Cost: ₹${hotelCost}<br>
-        Food Cost: ₹${foodCost}<br><hr>
-        <b>Total Trip Cost: ₹${total.toFixed(0)}</b>
+    let perKm={car:8,bike:3,train:2,flight:6}[mode];
+    let travel=dist*perKm;
+    let hotelCost=hotel*days*persons;
+    let foodCost=food*days*persons;
+    let total=travel+hotelCost+foodCost;
+
+    let w=await weather(c2[0],c2[1]);
+    let hs=await hotels(c2[0],c2[1]);
+
+    hs.slice(0,5).forEach(h=>{
+        L.marker([h.lat,h.lon]).addTo(map).bindPopup("Hotel");
+    });
+
+    document.getElementById("output").innerHTML=`
+    <div class="badge">Distance: ${dist.toFixed(2)} km</div><br>
+    <div class="badge">Weather: ${w.temperature}°C, Wind ${w.windspeed} km/h</div><br><br>
+    Travel: ₹${travel.toFixed(0)}<br>
+    Hotel: ₹${hotelCost}<br>
+    Food: ₹${foodCost}<br><hr>
+    <b>Total Cost: ₹${total.toFixed(0)}</b><br><br>
+    Nearby Hotels Shown on Map
     `;
 }
 </script>
@@ -166,6 +248,6 @@ async function calculate(){
         });
 
         server.start();
-        System.out.println("Trip Cost Estimator running at http://localhost:8080");
+        System.out.println("Running at http://localhost:8080");
     }
 }
