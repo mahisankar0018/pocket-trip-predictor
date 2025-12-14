@@ -1,473 +1,114 @@
+package com.tripcost;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@SpringBootApplication
+public class TripCostEstimatorApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(TripCostEstimatorApplication.class, args);
+    }
+}
+
+@RestController
+class TripUIController {
+
+    @GetMapping("/")
+    public String home() {
+        return """
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="utf-8">
-<title>StepTrip — Simple Trip Cost Estimator (INR)</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+<title>Trip Cost Estimator</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
-  :root{
-    --bg:#050816;
-    --paper:#111827;
-    --accent:#38bdf8;
-    --accent-soft:#0ea5e933;
-    --danger:#ef4444;
-    --text:#e5e7eb;
-    --muted:#9ca3af;
-    --radius:14px;
-    --shadow:0 18px 45px rgba(15,23,42,.65);
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{
-    min-height:100vh;
-    font-family:"Poppins",system-ui,Segoe UI,Roboto,Arial;
-    background:radial-gradient(circle at 0 0,#22c55e22,transparent 55%),
-               radial-gradient(circle at 100% 100%,#38bdf822,transparent 55%),
-               linear-gradient(160deg,#020617,#050816);
-    color:var(--text);
-  }
-  .shell{max-width:960px;margin:28px auto 40px;padding:0 16px;}
-  header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:18px;}
-  .title h1{font-size:clamp(22px,3vw,28px);}
-  .title p{font-size:13px;color:var(--muted);}
-  .pill{
-    padding:4px 10px;
-    border-radius:999px;
-    border:1px solid #1f2937;
-    font-size:11px;
-    text-transform:uppercase;
-    letter-spacing:.1em;
-    color:var(--muted);
-  }
-
-  /* main layout */
-  .layout{display:grid;grid-template-columns:1.1fr .9fr;gap:18px;}
-  @media(max-width:900px){.layout{grid-template-columns:1fr;}}
-
-  .card{
-    background:var(--paper);
-    border-radius:var(--radius);
-    border:1px solid #1f2937;
-    box-shadow:var(--shadow);
-  }
-  .card-inner{padding:16px 18px 18px;}
-
-  h2{font-size:17px;margin-bottom:4px;}
-  h3{font-size:15px;margin-bottom:4px;}
-  .step-label{
-    font-size:11px;
-    letter-spacing:.15em;
-    text-transform:uppercase;
-    color:var(--muted);
-    margin-bottom:2px;
-  }
-  .divider{
-    border-top:1px dashed #374151;
-    margin:10px 0 14px;
-  }
-
-  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
-  @media(max-width:700px){.grid-3{grid-template-columns:1fr 1fr;}}
-  label{font-size:13px;font-weight:600;margin-bottom:4px;}
-  .field{display:flex;flex-direction:column;margin-bottom:10px;}
-  input,select{
-    font-family:inherit;font-size:14px;
-    border-radius:10px;
-    border:1px solid #374151;
-    padding:9px 11px;
-    background:#020617;
-    color:var(--text);
-    outline:none;
-  }
-  input:focus,select:focus{
-    border-color:var(--accent);
-    box-shadow:0 0 0 3px var(--accent-soft);
-  }
-  .hint{font-size:11px;color:var(--muted);margin-top:3px;}
-  .error{font-size:11px;color:var(--danger);margin-top:3px;}
-
-  .btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;}
-  button{
-    font-family:inherit;font-size:14px;font-weight:600;
-    border-radius:999px;border:none;
-    padding:9px 16px;
-    cursor:pointer;
-  }
-  .btn-primary{
-    background:linear-gradient(90deg,#38bdf8,#22c55e);
-    color:#020617;
-  }
-  .btn-ghost{
-    background:transparent;
-    border:1px solid #374151;
-    color:var(--text);
-  }
-
-  /* summary strip */
-  .summary-strip{
-    display:flex;flex-wrap:wrap;gap:10px;
-    padding:10px 14px;
-    border-bottom:1px solid #1f2937;
-    background:radial-gradient(circle at 0 0,#38bdf811,transparent 60%),
-               radial-gradient(circle at 100% 100%,#22c55e11,transparent 60%);
-    border-radius:var(--radius) var(--radius) 0 0;
-  }
-  .chip{
-    padding:4px 10px;
-    border-radius:999px;
-    background:#020617aa;
-    font-size:12px;
-  }
-  .chip strong{font-weight:700;}
-
-  /* result stats */
-  .stat{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px dashed #374151;}
-  .stat:first-of-type{border-top:none;}
-  .stat-label{font-size:13px;}
-  .stat-value{font-size:14px;font-weight:700;}
-  .mono{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;}
-
-  .breakup{margin-top:8px;font-size:12px;color:var(--muted);line-height:1.5;}
+body{margin:0;font-family:Arial;background:#0f172a;color:white}
+h1{text-align:center;padding:10px}
+.card{background:#1e293b;margin:15px;padding:15px;border-radius:10px}
+input,button{padding:10px;width:95%;margin:5px}
+button{background:#22c55e;border:none;font-weight:bold;cursor:pointer}
+#map{height:400px;margin:15px;border-radius:10px}
 </style>
 </head>
+
 <body>
-<div class="shell">
-  <header>
-    <div class="title">
-      <h1>StepTrip Cost Planner</h1>
-      <p>Estimate fuel, stay, food and extras for any journey in a few quick steps.</p>
-    </div>
-    <div class="pill">INR • Driving or Flying</div>
-  </header>
 
-  <div class="layout">
-    <!-- LEFT: FORM -->
-    <section class="card">
-      <div class="card-inner">
-        <div class="step-label">Step 1 · Basic route</div>
-        <h2>Where are you going?</h2>
-        <div class="grid-2">
-          <div class="field">
-            <label for="from">From</label>
-            <input id="from" placeholder="City / town">
-          </div>
-          <div class="field">
-            <label for="to">To</label>
-            <input id="to" placeholder="City / town">
-          </div>
-        </div>
-        <div class="field">
-          <label for="distance">Distance (km)</label>
-          <input id="distance" type="number" min="1" step="0.1" placeholder="Example: 450">
-          <div class="hint">Use Google Maps once, then copy the total km here.</div>
-          <div class="error" id="distErr" hidden>Enter a positive distance in km.</div>
-        </div>
+<h1>Trip Cost Estimator</h1>
 
-        <div class="divider"></div>
-
-        <div class="step-label">Step 2 · Travel mode</div>
-        <div class="grid-2">
-          <div class="field">
-            <label for="mode">Mode</label>
-            <select id="mode">
-              <option value="car" selected>Driving – Car / SUV</option>
-              <option value="bike">Driving – Bike</option>
-              <option value="fly">Flying – Estimate</option>
-            </select>
-            <div class="hint">Driving uses mileage + fuel price; flying uses average fare per km.</div>
-          </div>
-          <div class="field">
-            <label for="travellers">Travellers</label>
-            <input id="travellers" type="number" min="1" value="2">
-          </div>
-        </div>
-
-        <div id="driveBlock">
-          <div class="grid-3">
-            <div class="field">
-              <label for="mileage">Mileage (km/L)</label>
-              <input id="mileage" type="number" min="1" value="18">
-            </div>
-            <div class="field">
-              <label for="fuel">Fuel price (₹/L)</label>
-              <input id="fuel" type="number" min="1" value="110">
-            </div>
-            <div class="field">
-              <label for="tollPerKm">Toll estimate (₹/km)</label>
-              <input id="tollPerKm" type="number" min="0" step="0.1" value="1.5">
-              <div class="hint">Set to 0 if there are no tolls.</div>
-            </div>
-          </div>
-        </div>
-
-        <div id="flyBlock" style="display:none;margin-top:6px;">
-          <div class="grid-3">
-            <div class="field">
-              <label for="farePerKm">Avg fare (₹/km)</label>
-              <input id="farePerKm" type="number" min="1" step="0.1" value="6.5">
-            </div>
-            <div class="field">
-              <label for="tripType">Trip type</label>
-              <select id="tripType">
-                <option value="one">One-way</option>
-                <option value="return" selected>Return</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="step-label">Step 3 · Stay & food</div>
-        <div class="grid-3">
-          <div class="field">
-            <label for="nights">Nights</label>
-            <input id="nights" type="number" min="0" step="1" value="0">
-          </div>
-          <div class="field">
-            <label for="hotelRate">Hotel (₹/room/night)</label>
-            <input id="hotelRate" type="number" min="0" step="1" value="0">
-          </div>
-          <div class="field">
-            <label for="pplPerRoom">People per room</label>
-            <input id="pplPerRoom" type="number" min="1" value="2">
-          </div>
-        </div>
-        <div class="grid-2">
-          <div class="field">
-            <label for="foodPerDay">Food (₹/person/day)</label>
-            <input id="foodPerDay" type="number" min="0" step="1" value="0">
-          </div>
-          <div class="field">
-            <label for="extras">Extras / shopping (₹ total)</label>
-            <input id="extras" type="number" min="0" step="1" value="0">
-          </div>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="step-label">Step 4 · Calculate</div>
-        <div class="btn-row">
-          <button class="btn-primary" id="calcBtn" type="button">Calculate cost</button>
-          <button class="btn-ghost" id="resetBtn" type="button">Clear all</button>
-        </div>
-        <div class="hint" style="margin-top:6px;">All values are estimated and rounded. Use this only as a planning helper.</div>
-      </div>
-    </section>
-
-    <!-- RIGHT: SUMMARY -->
-    <aside class="card">
-      <div class="summary-strip">
-        <div class="chip"><strong>Route:</strong> <span id="summaryRoute">—</span></div>
-        <div class="chip"><strong>Distance:</strong> <span id="summaryDist">0 km</span></div>
-        <div class="chip"><strong>Mode:</strong> <span id="summaryMode">–</span></div>
-      </div>
-      <div class="card-inner">
-        <h3>Trip budget overview</h3>
-        <p class="hint">Press “Calculate cost” after filling the form to see a full breakup.</p>
-
-        <div id="resultBlock" style="margin-top:8px;">
-          <div class="stat">
-            <div class="stat-label">Transport total</div>
-            <div class="stat-value mono" id="transportTotal">₹0</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">Stay total</div>
-            <div class="stat-value mono" id="stayTotal">₹0</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">Food total</div>
-            <div class="stat-value mono" id="foodTotal">₹0</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">Extras</div>
-            <div class="stat-value mono" id="extrasTotal">₹0</div>
-          </div>
-
-          <div class="stat" id="fuelRow">
-            <div class="stat-label">Fuel needed</div>
-            <div class="stat-value mono" id="fuelNeeded">0 L</div>
-          </div>
-          <div class="stat" id="roomsRow">
-            <div class="stat-label">Rooms × nights</div>
-            <div class="stat-value mono" id="roomsInfo">0 × 0</div>
-          </div>
-
-          <div class="stat" style="border-top:2px dashed #4b5563;margin-top:4px;">
-            <div class="stat-label">Grand total</div>
-            <div class="stat-value mono" id="grandTotal">₹0</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">Per person</div>
-            <div class="stat-value mono" id="perPerson">₹0</div>
-          </div>
-
-          <div class="breakup" id="breakdownText">Fill the details and hit calculate to see the cost breakup.</div>
-        </div>
-      </div>
-    </aside>
-  </div>
+<div class="card">
+<input id="from" placeholder="From (Hyderabad)">
+<input id="to" placeholder="To (Bengaluru)">
+<button onclick="findRoute()">Find Route</button>
+<p>Distance: <span id="distance">0</span> km</p>
 </div>
 
+<div class="card">
+<h3>🌤 Weather</h3>
+<div id="weather">No data</div>
+</div>
+
+<div class="card">
+<button onclick="findHotels()">🏨 Find Hotels Near Destination</button>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script>
-(() => {
-  const $ = id => document.getElementById(id);
+const map=L.map("map").setView([20.5937,78.9629],5);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+let routeLayer;
 
-  const nf0 = new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0});
-  const nf2 = new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:2});
+async function geo(place){
+ const r=await fetch("https://nominatim.openstreetmap.org/search?format=json&q="+place);
+ const d=await r.json();
+ return {lat:+d[0].lat,lon:+d[0].lon};
+}
 
-  const fields = {
-    from: $("from"), to: $("to"), distance: $("distance"),
-    mode: $("mode"), travellers: $("travellers"),
-    mileage: $("mileage"), fuel: $("fuel"), tollPerKm: $("tollPerKm"),
-    farePerKm: $("farePerKm"), tripType: $("tripType"),
-    nights: $("nights"), hotelRate: $("hotelRate"), pplPerRoom: $("pplPerRoom"),
-    foodPerDay: $("foodPerDay"), extras: $("extras")
-  };
+async function findRoute(){
+ const A=await geo(from.value);
+ const B=await geo(to.value);
 
-  const out = {
-    distErr: $("distErr"),
-    summaryRoute: $("summaryRoute"),
-    summaryDist: $("summaryDist"),
-    summaryMode: $("summaryMode"),
-    transportTotal: $("transportTotal"),
-    stayTotal: $("stayTotal"),
-    foodTotal: $("foodTotal"),
-    extrasTotal: $("extrasTotal"),
-    fuelNeeded: $("fuelNeeded"),
-    roomsInfo: $("roomsInfo"),
-    grandTotal: $("grandTotal"),
-    perPerson: $("perPerson"),
-    breakdownText: $("breakdownText"),
-    fuelRow: $("fuelRow"),
-    roomsRow: $("roomsRow")
-  };
+ const r=await fetch(
+ "https://router.project-osrm.org/route/v1/driving/"
+ +A.lon+","+A.lat+";"+B.lon+","+B.lat+
+ "?overview=full&geometries=geojson"
+ );
+ const data=await r.json();
+ const route=data.routes[0];
 
-  function toInt(v){ const n=parseInt(v,10); return Number.isFinite(n)?n:0; }
-  function toNum(v){ const n=parseFloat(v); return Number.isFinite(n)?n:0; }
+ distance.innerText=(route.distance/1000).toFixed(1);
 
-  function toggleMode(){
-    const m = fields.mode.value;
-    $("driveBlock").style.display = (m==="car" || m==="bike") ? "" : "none";
-    $("flyBlock").style.display   = (m==="fly") ? "" : "none";
-    out.fuelRow.style.display     = (m==="fly") ? "none" : "";
-  }
-  fields.mode.addEventListener("change", toggleMode);
-  toggleMode();
+ if(routeLayer) map.removeLayer(routeLayer);
+ routeLayer=L.geoJSON(route.geometry).addTo(map);
+ map.fitBounds(routeLayer.getBounds());
 
-  $("calcBtn").addEventListener("click", () => {
-    const dist = toNum(fields.distance.value);
-    if(!dist || dist <= 0){
-      out.distErr.hidden = false;
-      return;
-    }
-    out.distErr.hidden = true;
+ loadWeather(B.lat,B.lon);
+}
 
-    const travellers = Math.max(1, toInt(fields.travellers.value) || 1);
-    const mode = fields.mode.value;
-    let transport = 0;
-    let fuelLitres = 0;
-    let transportDetail = "";
+async function loadWeather(lat,lon){
+ const r=await fetch(
+ "https://api.open-meteo.com/v1/forecast?latitude="+lat+
+ "&longitude="+lon+"&current=temperature_2m"
+ );
+ const d=await r.json();
+ weather.innerText="Temperature: "+d.current.temperature_2m+" °C";
+}
 
-    if(mode === "car" || mode === "bike"){
-      const mileage = Math.max(1, toNum(fields.mileage.value) || 10);
-      const fuelPrice = Math.max(1, toNum(fields.fuel.value) || 100);
-      const tollPerKm = Math.max(0, toNum(fields.tollPerKm.value));
-      fuelLitres = dist / mileage;
-      const fuelCost = fuelLitres * fuelPrice;
-      const tollCost = dist * tollPerKm;
-      transport = fuelCost + tollCost;
-      transportDetail = `Fuel ${nf2.format(fuelCost)}`
-                      + (tollPerKm>0 ? ` + Tolls ${nf2.format(tollCost)}` : "");
-    } else {
-      const farePerKm = Math.max(1, toNum(fields.farePerKm.value) || 5);
-      const legs = fields.tripType.value === "return" ? 2 : 1;
-      const perTicket = dist * farePerKm * legs;
-      transport = perTicket * travellers;
-      transportDetail = `${legs===2?"Return":"One-way"} • ${dist.toFixed(1)} km × ₹${farePerKm}/km`;
-    }
-
-    // stay
-    const nights = Math.max(0, toInt(fields.nights.value));
-    const hotelRate = Math.max(0, toNum(fields.hotelRate.value));
-    const pplPerRoom = Math.max(1, toInt(fields.pplPerRoom.value) || 2);
-    let rooms = 0, stayTotal = 0;
-    if(nights>0 && hotelRate>0){
-      rooms = Math.ceil(travellers / pplPerRoom);
-      stayTotal = rooms * hotelRate * nights;
-    }
-
-    // food
-    const foodPerDay = Math.max(0, toNum(fields.foodPerDay.value));
-    let foodTotal = 0;
-    if(nights>0 && foodPerDay>0){
-      foodTotal = nights * travellers * foodPerDay;
-    }
-
-    const extras = Math.max(0, toNum(fields.extras.value));
-
-    const grand = transport + stayTotal + foodTotal + extras;
-    const perHead = travellers ? grand / travellers : grand;
-
-    // write outputs
-    out.summaryRoute.textContent =
-      (fields.from.value || "Start") + " → " + (fields.to.value || "Destination");
-    out.summaryDist.textContent = dist.toFixed(1) + " km";
-    out.summaryMode.textContent = mode === "fly" ? "Flying" : "Driving";
-
-    out.transportTotal.textContent = nf0.format(transport);
-    out.stayTotal.textContent      = nf0.format(stayTotal);
-    out.foodTotal.textContent      = nf0.format(foodTotal);
-    out.extrasTotal.textContent    = nf0.format(extras);
-    out.grandTotal.textContent     = nf0.format(grand);
-    out.perPerson.textContent      = nf0.format(perHead);
-
-    if(mode === "fly"){
-      out.fuelRow.style.display = "none";
-    }else{
-      out.fuelRow.style.display = "";
-      out.fuelNeeded.textContent = fuelLitres.toFixed(2) + " L";
-    }
-
-    if(rooms>0 && nights>0){
-      out.roomsRow.style.display = "";
-      out.roomsInfo.textContent = rooms + " × " + nights + " night" + (nights!==1?"s":"");
-    }else{
-      out.roomsRow.style.display = "none";
-      out.roomsInfo.textContent = "0 × 0";
-    }
-
-    const parts = [
-      `Transport: ${nf2.format(transport)} (${transportDetail})`,
-      stayTotal>0 ? `Stay: ${nf2.format(stayTotal)} (${rooms} room(s) × ${nights} night${nights!==1?"s":""})` : null,
-      foodTotal>0 ? `Food: ${nf2.format(foodTotal)} (${travellers} people × ₹${foodPerDay || 0}/day × ${nights || 0} days)` : null,
-      extras>0 ? `Extras: ${nf2.format(extras)}` : null
-    ].filter(Boolean);
-
-    out.breakdownText.textContent = parts.length ? parts.join(" • ") :
-      "No stay / food values entered yet. Add nights, hotel rate and food estimate for a complete split.";
-  });
-
-  $("resetBtn").addEventListener("click", () => {
-    Object.values(fields).forEach(el => { el.value = el.defaultValue || ""; });
-    $("mode").value = "car"; toggleMode();
-    out.summaryRoute.textContent = "—";
-    out.summaryDist.textContent = "0 km";
-    out.summaryMode.textContent = "–";
-    out.transportTotal.textContent = "₹0";
-    out.stayTotal.textContent = "₹0";
-    out.foodTotal.textContent = "₹0";
-    out.extrasTotal.textContent = "₹0";
-    out.grandTotal.textContent = "₹0";
-    out.perPerson.textContent = "₹0";
-    out.fuelNeeded.textContent = "0 L";
-    out.roomsInfo.textContent = "0 × 0";
-    out.breakdownText.textContent = "Fill the details and hit calculate to see the cost breakup.";
-    out.distErr.hidden = true;
-  });
-})();
+function findHotels(){
+ window.open("https://www.google.com/maps/search/hotels+near+"+to.value);
+}
 </script>
+
 </body>
 </html>
+""";
+    }
+}
