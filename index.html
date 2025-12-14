@@ -1,227 +1,171 @@
-package com.tripcost;
+import com.sun.net.httpserver.HttpServer;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
+public class TripCostEstimator {
 
-@SpringBootApplication
-public class TripCostEstimatorApplication {
-    public static void main(String[] args) {
-        SpringApplication.run(TripCostEstimatorApplication.class, args);
-    }
-}
+    public static void main(String[] args) throws Exception {
 
-@RestController
-class TripUIController {
+        HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
 
-    @GetMapping("/")
-    public String ui() {
-        return """
+        server.createContext("/", exchange -> {
+            String response = """
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<title>Trip cost estimator</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trip Cost Estimator</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
 body{
-  margin:0;
-  font-family:Arial, sans-serif;
-  background:#020617;
-  color:#e5e7eb;
+    margin:0;
+    font-family:Arial;
+    background:linear-gradient(120deg,#0f172a,#1e293b);
+    color:white;
 }
-h1{text-align:center;margin:20px 0}
 .container{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:20px;
-  padding:20px;
+    max-width:1000px;
+    margin:20px auto;
+    background:#020617;
+    padding:20px;
+    border-radius:12px;
 }
-.card{
-  background:#0f172a;
-  padding:20px;
-  border-radius:14px;
-}
-input,button{
-  width:100%;
-  padding:12px;
-  margin-top:10px;
-  border-radius:8px;
-  border:none;
+h1{text-align:center;color:#22c55e;}
+input,select{
+    width:100%;
+    padding:10px;
+    margin:8px 0;
+    border-radius:6px;
+    border:none;
 }
 button{
-  background:#22c55e;
-  color:#022c22;
-  font-weight:bold;
-  cursor:pointer;
+    width:100%;
+    padding:12px;
+    background:#22c55e;
+    border:none;
+    font-size:16px;
+    font-weight:bold;
+    border-radius:8px;
+    cursor:pointer;
 }
 #map{
-  height:420px;
-  margin:20px;
-  border-radius:14px;
+    height:350px;
+    margin-top:15px;
+    border-radius:10px;
 }
-.hidden{display:none}
-.row{
-  display:flex;
-  justify-content:space-between;
-  margin:8px 0;
-}
-hr{
-  border:none;
-  border-top:1px dashed #334155;
-  margin:12px 0;
+.result{
+    margin-top:20px;
+    background:#020617;
+    padding:15px;
+    border-radius:10px;
+    font-size:18px;
 }
 </style>
 </head>
 
 <body>
-
-<h1>Trip cost estimator</h1>
-
 <div class="container">
+<h1>Trip Cost Estimator</h1>
 
-<!-- INPUT SECTION -->
-<div class="card">
-<h3>Trip details</h3>
+<label>Origin</label>
+<input id="from" placeholder="Enter starting place">
 
-<input id="from" placeholder="Origin (e.g., Hyderabad)">
-<input id="to" placeholder="Destination (e.g., Bengaluru)">
+<label>Destination</label>
+<input id="to" placeholder="Enter destination place">
 
-<button onclick="findRoute()">Find route & distance</button>
+<label>Travel Mode</label>
+<select id="mode">
+<option value="car">Car</option>
+<option value="bike">Bike</option>
+<option value="train">Train</option>
+<option value="flight">Flight</option>
+</select>
 
-<hr>
+<label>No. of Days</label>
+<input type="number" id="days" value="1">
 
-<input id="mileage" type="number" placeholder="Vehicle mileage (km/L)" value="18">
-<input id="fuelPrice" type="number" placeholder="Fuel price (₹/L)" value="110">
+<label>No. of Persons</label>
+<input type="number" id="persons" value="1">
 
-<input id="travellers" type="number" placeholder="Number of travellers" value="2">
+<label>Hotel cost per day (₹)</label>
+<input type="number" id="hotel" value="1000">
 
-<input id="hotelRate" type="number" placeholder="Hotel cost (₹ per room per night)" value="1500">
-<input id="nights" type="number" placeholder="Number of nights" value="1">
+<label>Food cost per day (₹)</label>
+<input type="number" id="food" value="500">
 
-<input id="food" type="number" placeholder="Food cost (₹ per person per day)" value="300">
-<input id="extras" type="number" placeholder="Extra expenses (₹)" value="0">
-
-<button onclick="calculateCost()">Calculate trip cost</button>
-<button onclick="findHotels()">🏨 Find hotels near destination</button>
-</div>
-
-<!-- RESULT SECTION -->
-<div class="card hidden" id="resultCard">
-<h3>Trip budget overview</h3>
-
-<div class="row"><span>Distance</span><span><b id="rDist"></b> km</span></div>
-<div class="row"><span>Fuel needed</span><span><b id="rFuel"></b> L</span></div>
-<div class="row"><span>Transport cost</span><span>₹<b id="rTransport"></b></span></div>
-<div class="row"><span>Stay cost</span><span>₹<b id="rStay"></b></span></div>
-<div class="row"><span>Food cost</span><span>₹<b id="rFood"></b></span></div>
-<div class="row"><span>Extras</span><span>₹<b id="rExtra"></b></span></div>
-
-<hr>
-
-<div class="row"><strong>Grand total</strong><strong>₹<b id="rTotal"></b></strong></div>
-<div class="row"><strong>Per person</strong><strong>₹<b id="rPer"></b></strong></div>
-
-<hr>
-<h4>🌤 Weather</h4>
-<div id="weather">No data</div>
-</div>
-
-</div>
+<button onclick="calculate()">Calculate Trip Cost</button>
 
 <div id="map"></div>
+
+<div class="result" id="result"></div>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-let distanceKm = 0;
+let map = L.map('map').setView([20.5937,78.9629],5);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-const map = L.map("map").setView([20.5937,78.9629],5);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
-let routeLayer;
+let markers=[];
 
-async function geo(place){
-  const r = await fetch(
-    "https://nominatim.openstreetmap.org/search?format=json&q="+place
-  );
-  const d = await r.json();
-  return {lat:+d[0].lat, lon:+d[0].lon};
+async function getCoords(place){
+    let res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${place}`);
+    let data = await res.json();
+    return [data[0].lat, data[0].lon];
 }
 
-async function findRoute(){
-  const A = await geo(from.value);
-  const B = await geo(to.value);
+async function calculate(){
+    let from = document.getElementById("from").value;
+    let to = document.getElementById("to").value;
+    let mode = document.getElementById("mode").value;
+    let days = +document.getElementById("days").value;
+    let persons = +document.getElementById("persons").value;
+    let hotel = +document.getElementById("hotel").value;
+    let food = +document.getElementById("food").value;
 
-  const r = await fetch(
-    `https://router.project-osrm.org/route/v1/driving/${A.lon},${A.lat};${B.lon},${B.lat}?overview=full&geometries=geojson`
-  );
-  const data = await r.json();
-  const route = data.routes[0];
+    if(!from || !to){ alert("Enter origin and destination"); return; }
 
-  distanceKm = route.distance / 1000;
+    let c1 = await getCoords(from);
+    let c2 = await getCoords(to);
 
-  if(routeLayer) map.removeLayer(routeLayer);
-  routeLayer = L.geoJSON(route.geometry).addTo(map);
-  map.fitBounds(routeLayer.getBounds());
+    map.setView(c1,6);
+    markers.forEach(m=>map.removeLayer(m));
+    markers=[];
 
-  loadWeather(B.lat, B.lon);
-}
+    let m1 = L.marker(c1).addTo(map).bindPopup("Origin").openPopup();
+    let m2 = L.marker(c2).addTo(map).bindPopup("Destination");
+    markers.push(m1,m2);
 
-async function loadWeather(lat,lon){
-  const r = await fetch(
-    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m`
-  );
-  const d = await r.json();
-  weather.innerText = "Temperature: " + d.current.temperature_2m + " °C";
-}
+    let distance = map.distance(c1,c2)/1000;
 
-function calculateCost(){
-  if(distanceKm === 0){
-    alert("Please find route first");
-    return;
-  }
+    let perKm = {car:8,bike:3,train:2,flight:6}[mode];
+    let travelCost = distance * perKm;
+    let hotelCost = hotel * days * persons;
+    let foodCost = food * days * persons;
+    let total = travelCost + hotelCost + foodCost;
 
-  const mileage = +mileage.value;
-  const fuelP = +fuelPrice.value;
-  const trav = +travellers.value;
-  const rate = +hotelRate.value;
-  const nightsV = +nights.value;
-  const foodP = +food.value;
-  const extra = +extras.value;
-
-  const fuelNeeded = distanceKm / mileage;
-  const transport = fuelNeeded * fuelP;
-  const rooms = Math.ceil(trav / 2);
-  const stay = rooms * nightsV * rate;
-  const foodCost = trav * nightsV * foodP;
-
-  const total = transport + stay + foodCost + extra;
-
-  rDist.innerText = distanceKm.toFixed(1);
-  rFuel.innerText = fuelNeeded.toFixed(1);
-  rTransport.innerText = transport.toFixed(0);
-  rStay.innerText = stay;
-  rFood.innerText = foodCost;
-  rExtra.innerText = extra;
-  rTotal.innerText = total.toFixed(0);
-  rPer.innerText = (total / trav).toFixed(0);
-
-  resultCard.classList.remove("hidden");
-}
-
-function findHotels(){
-  window.open(
-    "https://www.google.com/maps/search/hotels+near+" + to.value
-  );
+    document.getElementById("result").innerHTML = `
+        Distance: <b>${distance.toFixed(2)} km</b><br>
+        Travel Cost: ₹${travelCost.toFixed(0)}<br>
+        Hotel Cost: ₹${hotelCost}<br>
+        Food Cost: ₹${foodCost}<br><hr>
+        <b>Total Trip Cost: ₹${total.toFixed(0)}</b>
+    `;
 }
 </script>
 
 </body>
 </html>
 """;
+
+            exchange.sendResponseHeaders(200, response.length());
+            OutputStream os = exchange.getResponseBody();
+            os.write(response.getBytes());
+            os.close();
+        });
+
+        server.start();
+        System.out.println("Trip Cost Estimator running at http://localhost:8080");
     }
 }
