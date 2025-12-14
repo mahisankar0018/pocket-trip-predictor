@@ -1,151 +1,91 @@
-import com.sun.net.httpserver.HttpServer;
-import java.io.OutputStream;
-import java.net.InetSocketAddress;
+import java.util.*;
 
-public class TripCostEstimator {
-
-    public static void main(String[] args) throws Exception {
-
-        HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
-
-        server.createContext("/", exchange -> {
-
-            String html = """
-<!DOCTYPE html>
-<html>
-<head>
-<title>Trip Cost Estimator</title>
-
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-
-<style>
-body{
-    margin:0;
-    font-family:Arial;
-    background:#0f172a;
-    color:white;
-}
-.container{
-    max-width:1100px;
-    margin:20px auto;
-}
-.card{
-    background:#020617;
-    padding:20px;
-    border-radius:14px;
-    margin-bottom:15px;
-}
-h1{text-align:center;color:#22c55e;}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;}
-input,select{width:100%;padding:10px;border-radius:8px;border:none;}
-button{width:100%;padding:14px;background:#22c55e;border:none;font-size:17px;font-weight:bold;border-radius:10px;cursor:pointer;}
-.suggestions{background:#020617;border-radius:8px;max-height:140px;overflow:auto;}
-.suggestions div{padding:8px;border-bottom:1px solid #334155;cursor:pointer;}
-.suggestions div:hover{background:#334155;}
-#map{height:420px;border-radius:14px;}
-</style>
-</head>
-
-<body>
-<div class="container">
-
-<h1>Trip Cost Estimator</h1>
-
-<div class="card grid">
-<div>
-<label>Origin</label>
-<input id="from" onkeyup="suggest(this,'fromList')" placeholder="Type city">
-<div id="fromList" class="suggestions"></div>
-
-<label>Destination</label>
-<input id="to" onkeyup="suggest(this,'toList')" placeholder="Type city">
-<div id="toList" class="suggestions"></div>
-
-<label>Travel Mode</label>
-<select id="mode">
-<option value="car">Car</option>
-<option value="bike">Bike</option>
-<option value="train">Train</option>
-<option value="flight">Flight</option>
-</select>
-</div>
-
-<div>
-<label>Days</label>
-<input id="days" type="number">
-
-<label>Persons</label>
-<input id="persons" type="number">
-
-<label>Hotel / day (₹)</label>
-<input id="hotel" type="number">
-
-<label>Food / day (₹)</label>
-<input id="food" type="number">
-</div>
-</div>
-
-<div class="card">
-<button onclick="calculate()">Calculate Trip</button>
-</div>
-
-<div id="map"></div>
-<div class="card" id="result"></div>
-
-</div>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-<script>
-let map = L.map('map').setView([20.5937,78.9629],5);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-let line, markers=[];
-
-/* AUTOCOMPLETE — PHOTON */
-async function suggest(input, listId){
-    let q=input.value;
-    let list=document.getElementById(listId);
-    list.innerHTML="";
-    if(q.length<2) return;
-
-    let res = await fetch(`https://photon.komoot.io/api/?q=${q}&limit=5`);
-    let data = await res.json();
-
-    data.features.forEach(f=>{
-        let d=document.createElement("div");
-        d.innerText=f.properties.name + ", " + (f.properties.country||"");
-        d.onclick=()=>{
-            input.value=d.innerText;
-            input.dataset.lat=f.geometry.coordinates[1];
-            input.dataset.lon=f.geometry.coordinates[0];
-            list.innerHTML="";
-        };
-        list.appendChild(d);
-    });
+interface CostComponent {
+    double calculate();
 }
 
-/* MAIN */
-function calculate(){
-    let from=document.getElementById("from");
-    let to=document.getElementById("to");
+class FuelCost implements CostComponent {
+    private double distanceKm;
+    private double fuelEfficiencyKmpl;
+    private double fuelPricePerLitre;
 
-    if(!from.dataset.lat || !to.dataset.lat){
-        alert("Please select cities from suggestions");
-        return;
+    public FuelCost(double distanceKm, double fuelEfficiencyKmpl, double fuelPricePerLitre) {
+        this.distanceKm = distanceKm;
+        this.fuelEfficiencyKmpl = fuelEfficiencyKmpl;
+        this.fuelPricePerLitre = fuelPricePerLitre;
     }
 
-    let c1=[+from.dataset.lat,+from.dataset.lon];
-    let c2=[+to.dataset.lat,+to.dataset.lon];
+    @Override
+    public double calculate() {
+        return (distanceKm / fuelEfficiencyKmpl) * fuelPricePerLitre;
+    }
+}
 
-    markers.forEach(m=>map.removeLayer(m));
-    if(line) map.removeLayer(line);
+class AdditionalCosts implements CostComponent {
+    private double[] costs;
 
-    markers.push(L.marker(c1).addTo(map).bindPopup("Origin"));
-    markers.push(L.marker(c2).addTo(map).bindPopup("Destination"));
+    public AdditionalCosts(double[] costs) {
+        this.costs = costs;
+    }
 
-    line=L.polyline([c1,c2],{color:'#22c55e',weight:5}).addTo(map);
-    map.fitBounds(line.getBounds());
+    @Override
+    public double calculate() {
+        double total = 0;
+        for (double cost : costs) {
+            total += cost;
+        }
+        return total;
+    }
+}
 
-    let dist=map.distance(c1,c2)/1000;
+class TripCostEstimator {
+    private List<CostComponent> components = new ArrayList<>();
 
-    let days=+days.value, persons=+persons.value;
+    public void addComponent(CostComponent component) {
+        components.add(component);
+    }
+
+    public double estimateTotalCost() {
+        double total = 0;
+        for (CostComponent component : components) {
+            total += component.calculate();
+        }
+        return total;
+    }
+
+    public static void main(String[] args) {
+        try {
+            Scanner scanner = new Scanner(System.in);
+
+            System.out.print("Enter distance (km): ");
+            double distance = Double.parseDouble(scanner.nextLine());
+
+            System.out.print("Enter fuel efficiency (km/l): ");
+            double efficiency = Double.parseDouble(scanner.nextLine());
+
+            System.out.print("Enter fuel price (per litre): ");
+            double fuelPrice = Double.parseDouble(scanner.nextLine());
+
+            System.out.print("Enter lodging cost: ");
+            double lodging = Double.parseDouble(scanner.nextLine());
+
+            System.out.print("Enter food cost: ");
+            double food = Double.parseDouble(scanner.nextLine());
+
+            System.out.print("Enter miscellaneous cost: ");
+            double misc = Double.parseDouble(scanner.nextLine());
+
+            TripCostEstimator estimator = new TripCostEstimator();
+            estimator.addComponent(new FuelCost(distance, efficiency, fuelPrice));
+            estimator.addComponent(new AdditionalCosts(new double[]{lodging, food, misc}));
+
+            double totalCost = estimator.estimateTotalCost();
+            System.out.printf("Estimated Trip Cost: ₹%.2f%n", totalCost);
+
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid input. Please enter numeric values.");
+        } catch (Exception e) {
+            System.out.println("An unexpected error occurred: " + e.getMessage());
+        }
+    }
+}
