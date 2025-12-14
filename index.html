@@ -1,91 +1,120 @@
-import java.util.*;
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
 
-interface CostComponent {
-    double calculate();
-}
+public class TripCostEstimator extends JFrame {
 
-class FuelCost implements CostComponent {
-    private double distanceKm;
-    private double fuelEfficiencyKmpl;
-    private double fuelPricePerLitre;
+    JTextField originField, destinationField, distanceField, daysField;
+    JTextField fuelField, hotelField, foodField;
+    JComboBox<String> modeBox;
+    JTextArea resultArea;
 
-    public FuelCost(double distanceKm, double fuelEfficiencyKmpl, double fuelPricePerLitre) {
-        this.distanceKm = distanceKm;
-        this.fuelEfficiencyKmpl = fuelEfficiencyKmpl;
-        this.fuelPricePerLitre = fuelPricePerLitre;
+    public TripCostEstimator() {
+
+        setTitle("Trip Cost Estimator");
+        setSize(500, 600);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+
+        setLayout(new BorderLayout());
+
+        JPanel form = new JPanel(new GridLayout(9, 2, 10, 10));
+        form.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+
+        originField = new JTextField();
+        destinationField = new JTextField();
+        distanceField = new JTextField();
+        daysField = new JTextField();
+        fuelField = new JTextField();
+        hotelField = new JTextField();
+        foodField = new JTextField();
+
+        modeBox = new JComboBox<>(new String[]{"Car", "Train", "Flight"});
+
+        form.add(new JLabel("Origin City:"));
+        form.add(originField);
+
+        form.add(new JLabel("Destination City:"));
+        form.add(destinationField);
+
+        form.add(new JLabel("Distance (km):"));
+        form.add(distanceField);
+
+        form.add(new JLabel("Number of Days:"));
+        form.add(daysField);
+
+        form.add(new JLabel("Travel Mode:"));
+        form.add(modeBox);
+
+        form.add(new JLabel("Fuel Price (per litre):"));
+        form.add(fuelField);
+
+        form.add(new JLabel("Hotel Cost (per night):"));
+        form.add(hotelField);
+
+        form.add(new JLabel("Food Cost (per day):"));
+        form.add(foodField);
+
+        JButton calculateBtn = new JButton("Calculate Trip Cost");
+
+        resultArea = new JTextArea(8, 30);
+        resultArea.setEditable(false);
+        resultArea.setFont(new Font("Monospaced", Font.PLAIN, 13));
+
+        calculateBtn.addActionListener(e -> calculateCost());
+
+        add(form, BorderLayout.NORTH);
+        add(calculateBtn, BorderLayout.CENTER);
+        add(new JScrollPane(resultArea), BorderLayout.SOUTH);
     }
 
-    @Override
-    public double calculate() {
-        return (distanceKm / fuelEfficiencyKmpl) * fuelPricePerLitre;
-    }
-}
+    private void calculateCost() {
+        try {
+            double distance = Double.parseDouble(distanceField.getText());
+            int days = Integer.parseInt(daysField.getText());
+            double fuelPrice = Double.parseDouble(fuelField.getText());
+            double hotel = Double.parseDouble(hotelField.getText());
+            double food = Double.parseDouble(foodField.getText());
 
-class AdditionalCosts implements CostComponent {
-    private double[] costs;
+            String mode = (String) modeBox.getSelectedItem();
 
-    public AdditionalCosts(double[] costs) {
-        this.costs = costs;
-    }
+            double travelCost = 0;
 
-    @Override
-    public double calculate() {
-        double total = 0;
-        for (double cost : costs) {
-            total += cost;
+            if (mode.equals("Car")) {
+                travelCost = (distance / 15) * fuelPrice;
+            } else if (mode.equals("Train")) {
+                travelCost = distance * 1.5;
+            } else if (mode.equals("Flight")) {
+                travelCost = distance * 5;
+            }
+
+            double hotelCost = hotel * days;
+            double foodCost = food * days;
+            double total = travelCost + hotelCost + foodCost;
+
+            resultArea.setText(
+                    "Trip Cost Estimation\n" +
+                    "---------------------------\n" +
+                    "From: " + originField.getText() + "\n" +
+                    "To: " + destinationField.getText() + "\n\n" +
+                    "Travel Cost : ₹ " + String.format("%.2f", travelCost) + "\n" +
+                    "Hotel Cost  : ₹ " + String.format("%.2f", hotelCost) + "\n" +
+                    "Food Cost   : ₹ " + String.format("%.2f", foodCost) + "\n" +
+                    "---------------------------\n" +
+                    "Total Cost  : ₹ " + String.format("%.2f", total)
+            );
+
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this,
+                    "Please enter valid numeric values",
+                    "Input Error",
+                    JOptionPane.ERROR_MESSAGE);
         }
-        return total;
-    }
-}
-
-class TripCostEstimator {
-    private List<CostComponent> components = new ArrayList<>();
-
-    public void addComponent(CostComponent component) {
-        components.add(component);
-    }
-
-    public double estimateTotalCost() {
-        double total = 0;
-        for (CostComponent component : components) {
-            total += component.calculate();
-        }
-        return total;
     }
 
     public static void main(String[] args) {
-        try {
-            Scanner scanner = new Scanner(System.in);
-
-            System.out.print("Enter distance (km): ");
-            double distance = Double.parseDouble(scanner.nextLine());
-
-            System.out.print("Enter fuel efficiency (km/l): ");
-            double efficiency = Double.parseDouble(scanner.nextLine());
-
-            System.out.print("Enter fuel price (per litre): ");
-            double fuelPrice = Double.parseDouble(scanner.nextLine());
-
-            System.out.print("Enter lodging cost: ");
-            double lodging = Double.parseDouble(scanner.nextLine());
-
-            System.out.print("Enter food cost: ");
-            double food = Double.parseDouble(scanner.nextLine());
-
-            System.out.print("Enter miscellaneous cost: ");
-            double misc = Double.parseDouble(scanner.nextLine());
-
-            TripCostEstimator estimator = new TripCostEstimator();
-            estimator.addComponent(new FuelCost(distance, efficiency, fuelPrice));
-            estimator.addComponent(new AdditionalCosts(new double[]{lodging, food, misc}));
-
-            double totalCost = estimator.estimateTotalCost();
-            System.out.printf("Estimated Trip Cost: ₹%.2f%n", totalCost);
-
-        } catch (NumberFormatException e) {
-            System.out.println("Invalid input. Please enter numeric values.");
-        } catch (Exception e) {
-            System.out.println("An unexpected error occurred: " + e.getMessage());
-        }
+        SwingUtilities.invokeLater(() -> {
+            new TripCostEstimator().setVisible(true);
+        });
     }
 }
