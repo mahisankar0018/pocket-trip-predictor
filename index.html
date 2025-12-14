@@ -9,7 +9,8 @@ public class TripCostEstimator {
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
 
         server.createContext("/", exchange -> {
-            String response = """
+
+            String html = """
 <!DOCTYPE html>
 <html>
 <head>
@@ -20,70 +21,28 @@ public class TripCostEstimator {
 <style>
 body{
     margin:0;
-    font-family:'Segoe UI',sans-serif;
+    font-family:Arial;
     background:#0f172a;
-    color:#e5e7eb;
+    color:white;
 }
 .container{
     max-width:1100px;
     margin:20px auto;
-    padding:20px;
 }
 .card{
     background:#020617;
     padding:20px;
     border-radius:14px;
-    margin-bottom:20px;
+    margin-bottom:15px;
 }
-h1{
-    text-align:center;
-    color:#22c55e;
-}
-.grid{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:15px;
-}
-input,select{
-    width:100%;
-    padding:10px;
-    border-radius:8px;
-    border:none;
-}
-button{
-    width:100%;
-    padding:14px;
-    background:#22c55e;
-    border:none;
-    font-size:17px;
-    font-weight:bold;
-    border-radius:10px;
-    cursor:pointer;
-}
-.suggestions{
-    background:#020617;
-    border-radius:6px;
-    max-height:150px;
-    overflow:auto;
-}
-.suggestions div{
-    padding:8px;
-    cursor:pointer;
-}
-.suggestions div:hover{
-    background:#334155;
-}
-#map{
-    height:420px;
-    border-radius:14px;
-}
-.badge{
-    display:inline-block;
-    padding:6px 10px;
-    background:#334155;
-    border-radius:20px;
-    margin:5px 0;
-}
+h1{text-align:center;color:#22c55e;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;}
+input,select{width:100%;padding:10px;border-radius:8px;border:none;}
+button{width:100%;padding:14px;background:#22c55e;border:none;font-size:17px;font-weight:bold;border-radius:10px;cursor:pointer;}
+.suggestions{background:#020617;border-radius:8px;max-height:140px;overflow:auto;}
+.suggestions div{padding:8px;border-bottom:1px solid #334155;cursor:pointer;}
+.suggestions div:hover{background:#334155;}
+#map{height:420px;border-radius:14px;}
 </style>
 </head>
 
@@ -95,11 +54,11 @@ button{
 <div class="card grid">
 <div>
 <label>Origin</label>
-<input id="from" onkeyup="suggest(this,'fromList')" placeholder="Start city">
+<input id="from" onkeyup="suggest(this,'fromList')" placeholder="Type city">
 <div id="fromList" class="suggestions"></div>
 
 <label>Destination</label>
-<input id="to" onkeyup="suggest(this,'toList')" placeholder="Destination city">
+<input id="to" onkeyup="suggest(this,'toList')" placeholder="Type city">
 <div id="toList" class="suggestions"></div>
 
 <label>Travel Mode</label>
@@ -113,16 +72,16 @@ button{
 
 <div>
 <label>Days</label>
-<input type="number" id="days" value="1">
+<input id="days" type="number">
 
 <label>Persons</label>
-<input type="number" id="persons" value="1">
+<input id="persons" type="number">
 
 <label>Hotel / day (₹)</label>
-<input type="number" id="hotel" value="1200">
+<input id="hotel" type="number">
 
 <label>Food / day (₹)</label>
-<input type="number" id="food" value="600">
+<input id="food" type="number">
 </div>
 </div>
 
@@ -131,8 +90,7 @@ button{
 </div>
 
 <div id="map"></div>
-
-<div class="card" id="output"></div>
+<div class="card" id="result"></div>
 
 </div>
 
@@ -141,113 +99,53 @@ button{
 <script>
 let map = L.map('map').setView([20.5937,78.9629],5);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+let line, markers=[];
 
-let routeLine;
-let markers=[];
-
-/* AUTOCOMPLETE */
-async function suggest(input,listId){
+/* AUTOCOMPLETE — PHOTON */
+async function suggest(input, listId){
     let q=input.value;
     let list=document.getElementById(listId);
     list.innerHTML="";
-    if(q.length<3) return;
+    if(q.length<2) return;
 
-    let res=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=5`);
-    let data=await res.json();
+    let res = await fetch(`https://photon.komoot.io/api/?q=${q}&limit=5`);
+    let data = await res.json();
 
-    data.forEach(p=>{
+    data.features.forEach(f=>{
         let d=document.createElement("div");
-        d.innerText=p.display_name;
-        d.onclick=()=>{input.value=p.display_name;list.innerHTML="";};
+        d.innerText=f.properties.name + ", " + (f.properties.country||"");
+        d.onclick=()=>{
+            input.value=d.innerText;
+            input.dataset.lat=f.geometry.coordinates[1];
+            input.dataset.lon=f.geometry.coordinates[0];
+            list.innerHTML="";
+        };
         list.appendChild(d);
     });
 }
 
-/* GET COORDS */
-async function coords(place){
-    let r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${place}`);
-    let d=await r.json();
-    return [parseFloat(d[0].lat),parseFloat(d[0].lon)];
-}
-
-/* WEATHER */
-async function weather(lat,lon){
-    let r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
-    let d=await r.json();
-    return d.current_weather;
-}
-
-/* HOTELS */
-async function hotels(lat,lon){
-    let query=`[out:json];
-    node(around:3000,${lat},${lon})["tourism"="hotel"];
-    out;`;
-    let r=await fetch("https://overpass-api.de/api/interpreter",{method:"POST",body:query});
-    let d=await r.json();
-    return d.elements;
-}
-
 /* MAIN */
-async function calculate(){
-    let from=document.getElementById("from").value;
-    let to=document.getElementById("to").value;
-    let mode=document.getElementById("mode").value;
-    let days=+days=document.getElementById("days").value;
-    let persons=+document.getElementById("persons").value;
-    let hotel=+document.getElementById("hotel").value;
-    let food=+document.getElementById("food").value;
+function calculate(){
+    let from=document.getElementById("from");
+    let to=document.getElementById("to");
 
-    let c1=await coords(from);
-    let c2=await coords(to);
+    if(!from.dataset.lat || !to.dataset.lat){
+        alert("Please select cities from suggestions");
+        return;
+    }
+
+    let c1=[+from.dataset.lat,+from.dataset.lon];
+    let c2=[+to.dataset.lat,+to.dataset.lon];
 
     markers.forEach(m=>map.removeLayer(m));
-    if(routeLine) map.removeLayer(routeLine);
+    if(line) map.removeLayer(line);
 
-    let m1=L.marker(c1).addTo(map).bindPopup("Origin");
-    let m2=L.marker(c2).addTo(map).bindPopup("Destination");
-    markers=[m1,m2];
+    markers.push(L.marker(c1).addTo(map).bindPopup("Origin"));
+    markers.push(L.marker(c2).addTo(map).bindPopup("Destination"));
 
-    routeLine=L.polyline([c1,c2],{color:'#22c55e',weight:5}).addTo(map);
-    map.fitBounds(routeLine.getBounds());
+    line=L.polyline([c1,c2],{color:'#22c55e',weight:5}).addTo(map);
+    map.fitBounds(line.getBounds());
 
     let dist=map.distance(c1,c2)/1000;
 
-    let perKm={car:8,bike:3,train:2,flight:6}[mode];
-    let travel=dist*perKm;
-    let hotelCost=hotel*days*persons;
-    let foodCost=food*days*persons;
-    let total=travel+hotelCost+foodCost;
-
-    let w=await weather(c2[0],c2[1]);
-    let hs=await hotels(c2[0],c2[1]);
-
-    hs.slice(0,5).forEach(h=>{
-        L.marker([h.lat,h.lon]).addTo(map).bindPopup("Hotel");
-    });
-
-    document.getElementById("output").innerHTML=`
-    <div class="badge">Distance: ${dist.toFixed(2)} km</div><br>
-    <div class="badge">Weather: ${w.temperature}°C, Wind ${w.windspeed} km/h</div><br><br>
-    Travel: ₹${travel.toFixed(0)}<br>
-    Hotel: ₹${hotelCost}<br>
-    Food: ₹${foodCost}<br><hr>
-    <b>Total Cost: ₹${total.toFixed(0)}</b><br><br>
-    Nearby Hotels Shown on Map
-    `;
-}
-</script>
-
-</body>
-</html>
-""";
-
-            exchange.sendResponseHeaders(200, response.length());
-            OutputStream os = exchange.getResponseBody();
-            os.write(response.getBytes());
-            os.close();
-        });
-
-        server.start();
-        System.out.println("Running at http://localhost:8080");
-    }
-}
+    let days=+days.value, persons=+persons.value;
